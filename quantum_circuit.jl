@@ -51,6 +51,24 @@ function qubit_order(q_order::String)
     end
 end # end qubit_order
 
+# function to print a quantum register and quantum states in latex format 
+function print_statevector(
+    state_vector::Union{Vector{Float64},Vector{Int64}, Vector{ComplexF64}},
+    q_states::Array{Int64,2})
+    # print a quantum register and quantum states in latex format 
+    # qc::qc_initstruct: quantum register
+    # return: print a quantum register and quantum states in latex format 
+    
+    #### ************* not tested 
+
+    # combine statevector and quantum states in one table 
+    # state_vector::Vector{ComplexF64}: statevector of the quantum register
+    # q_states::Array{Int64,2}: quantum states of the quantum register
+    # return: print a quantum register and quantum states in latex format
+    qtab = [q_states convert(Array{Int64}, state_vector)]
+    println("The quantum register and quantum states in latex format are: ")
+    show(stdout, "text/plain", qtab)
+end # end print_latex
 
 # Initizalize the quantum registers of n qubits
 function init_register(n::Int64; q_order::String="big-endian")

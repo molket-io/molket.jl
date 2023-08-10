@@ -586,15 +586,15 @@ function CCX_gate(q0_control::Int64,q1_control::Int64,q_target::Int64,
         (!big_endian && q0_control > q1_control && 
         q0_control > q_target && q1_control > q_target)
     # Define the CCX gate
-    CCX = [1 0 0 0 0 0 0 0; 
-           0 1 0 0 0 0 0 0; 
-           0 0 1 0 0 0 0 0;
-           0 0 0 1 0 0 0 0;
-           0 0 0 0 1 0 0 0;
-           0 0 0 0 0 1 0 0;
-           0 0 0 0 0 0 0 1;
-           0 0 0 0 0 0 1 0]
-    return CCX
+        CCX = [1 0 0 0 0 0 0 0; 
+               0 1 0 0 0 0 0 0; 
+               0 0 1 0 0 0 0 0;
+               0 0 0 1 0 0 0 0;
+               0 0 0 0 1 0 0 0;
+               0 0 0 0 0 1 0 0;
+               0 0 0 0 0 0 0 1;
+               0 0 0 0 0 0 1 0]
+        return CCX
     else
         # Case: little-endian convention and the control qubit is the LSB
         # This is qiskit convention. 

@@ -303,3 +303,19 @@ function CCX_gate()
            0 0 0 1 0 0 0 0]
     return CCX
 end # end CCX_gate
+
+
+
+# Compute the spherical harmonics in full normalization convention
+function Ylm(l::Int64, m::Int64, theta::Float64, phi::Float64)
+    norm = sqrt((2*l+1)/(4*pi)) * sqrt(factorial(l+m)/factorial(l-m))
+    if m == 0
+        return norm * Pl(cos(theta),l)
+    elseif m > 0
+        return norm * Plm(cos(theta),l,m) * cos(m*phi)
+    else
+        return norm * Plm(cos(theta),l,-m) * sin(-m*phi)
+    end
+end # function
+
+

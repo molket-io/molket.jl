@@ -26,7 +26,7 @@ using SparseArrays # https://docs.julialang.org/en/v1/stdlib/SparseArrays/
 
 # import conventions
 include("conventions.jl")
-  using .conventions: big_endian, qubit_start_1
+  using .conventions: big_endian
 # import quantum gates
 include("quantum_gates.jl")
 using ..quantum_gates: Qgate
@@ -105,7 +105,7 @@ end # Qgate_tenop
 # Type 1: tensor product of a 2D quantum gate acting on a qubit
 function Qgate_T2D(gate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}}, 
                  qubit_target::Int64, nqubits::Int64, 
-                 qubit_start_1::Bool=conventions.qubit_start_1,
+                 qubit_start::Int64=0,
                  big_endian::Bool=conventions.big_endian,
                  err_tol::Float64=err_tol)
   # gate_qn is used to construct the quantum gate acting on the qubit i 
@@ -121,26 +121,33 @@ function Qgate_T2D(gate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}},
   # ... in the quantum register
   qubits = Array{Int64}(undef, nqubits)
   qubits = collect(0:nqubits-1)
-
-  # check the convention of the index_start where qubit counting can start from 0 or 1
-  # ... the default is 0.
-  # nqubits is the number of qubits in the quantum register
-  if !qubit_start_1
-    qubit_end = nqubits # number of qubits in the quantum register
-    qubit_begin = 1
-  else
-    qubit_end = nqubits-1 # number of qubits in the quantum register
-    qubit_begin = 0
+  # check the index_start is an integer and starts from 0 or 1
+  if !isa(qubit_start, Int64)
+    error("The index_start must be an integer")
   end
-  # check if qubit_target is an integer, and in range
-  if !isa(qubit_target, Int64) || qubit_target <  qubit_begin || qubit_target > nqubits-1
-    error("The target qubit must be an integer in range: ", qubit_begin, " ", qubit_end)
+  if qubit_start != 0 && qubit_start != 1
+    error("The index_start must be 0 or 1")
+  end
+  # we only take the case of qubit_start = 0
+  # check if qubit_target is an integer
+  if !isa(qubit_target, Int64)
+    error("The qubit index must be an integer")
+  end
+  if qubit_start == 0
+    nqubits_convention = nqubits-1
+  elseif qubit_start == 1
+    nqubits_convention = nqubits
+  end
+   
+  # check that the qubit_target is in the quantum register
+  if qubit_target < qubit_start || qubit_target > nqubits-1
+    error("The target qubit is not in the quantum register")
   end
     # the tensor product used to construct the quantum gate 
   # ... acting on the qubit qubit_index is independent of the convention. 
   gate_construct = 1
   II = Matrix(I, 2, 2)
-  for i in  qubit_begin:qubit_end
+  for i in qubit_start:nqubits_convention
     if i == qubit_target
       gate_construct = kron(gate, gate_construct)
     else
@@ -148,60 +155,12 @@ function Qgate_T2D(gate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}},
     end
   end
 
-end # Qgate_T2D
+end # tensor_gate_apply
 
 
 # Type 2: tensor product of a 4D quantum gate acting on a target qubit 
 # ... based on a state of a control qubit.
-function Qgate_CU_T4D(Ugate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}}, 
-  qubit_control::Int64, qubit_target::Int64, nqubits::Int64, 
-  qubit_start_1::Bool=conventions.qubit_start_1,
-  big_endian::Bool=conventions.big_endian,
-  err_tol::Float64=err_tol)
-  # gate is used to construct the quantum gate acting on the qubit_target 
-  # ... of a quantum register of nqubits qubits provided that the qubit_control 
-  # ... is in the state |1>.
-  # Ugate is a reduced representation of the quantum gate: minimal representation 
-  # ... of the quantum gate in 2x2 matrices, 4x4 matrices, etc.
-  # Ugate is given in big endian convention. The function will convert it into 
-  # ... little endian convention if big_endian is false.
-  # get the matrix elements of the gate Ugate
-  U_11 = Ugate(1,1)
-  U_12 = Ugate(1,2)
-  U_21 = Ugate(2,1)
-  U_22 = Ugate(2,2)
 
-  # check the convention of the index_start where qubit counting can start from 0 or 1
-  # ... the default is 0.
-  # nqubits is the number of qubits in the quantum register
-  if !qubit_start_1
-    qubit_end = nqubits # number of qubits in the quantum register
-    qubit_begin = 1
-  else
-    qubit_end = nqubits-1 # number of qubits in the quantum register
-    qubit_begin = 0
-  end
-
-  II = Matrix(I, 2, 2) # indentity matrix
-  if q_control == q_target
-    error("The control and target qubits are the same")
-  elseif (big_endian && q_control < q_target) || (!big_endian && q_control > q_target) 
-    # construct the quantum gate acting on the qubit qubit_target 
-    U_2D = [U_11 U_12; 
-            U_21 U_22]
-    # construct the quantum gate acting on the qubit qubit_control
-    for iq in qubit_begin:qubit_end
-      if iq == q_control
-     
-      elseif iq == q_target
-   
-      else
-    
-      end
-      U_2D = kron(U_4D, U_2D)
-    end
-  end 
-end # tensor_gate_apply
 
 # Type 3: tensor product of a 8D quantum gate acting on a target qubit 
 # ... based on a state of two control qubits.
