@@ -1,4 +1,4 @@
-module MKsphericalharmonics
+module MK_SphericalHarmonics
 
 using LinearAlgebra
 using SpecialFunctions
@@ -16,7 +16,7 @@ export Ylm, Clm, Slm
 #        a degree l and an order m
 
 # Compute the spherical harmonics in full normalization convention
-function Ylm(l::Int64, m::Int64, theta::Float64, phi::Float64)
+function Ylm(l, m, theta, phi)
     # Complex spherical harmonics with full normalization convention
     # normalized to unity on the sphere
     # Ylm = -1^m sqrt((2l+1)/(4pi)) * sqrt((l-m)!/(l+m)!) 
@@ -36,12 +36,11 @@ function Ylm(l::Int64, m::Int64, theta::Float64, phi::Float64)
     # Note: the function required the package AssociatedLegendrePolynomials
     #       to be installed
 
-    cos_theta = cos(theta)
-    Y_lm = legendre(LegendreSphereNorm(), l, abs(m), cos_theta)*exp(1im*m*phi)
+    Y_lm = legendre(LegendreSphereNorm(), l, abs(m), cos(theta))*exp(1im*m*phi)
     return Y_lm
 end # function
 
-function Clm(l::Int64, m::Int64, theta::Float64, phi::Float64)
+function Clm(l, m, theta, phi)
     # Complex spherical harmonics with the phase convention 
     # using Racah's normalization convention
     norm = sqrt((2l+1)/(4pi)) 
@@ -49,7 +48,7 @@ function Clm(l::Int64, m::Int64, theta::Float64, phi::Float64)
     return C_lm
 end # function Clm
 
-function Slm(l::Int64, m::Int64, theta::Float64, phi::Float64)
+function Slm(l, m, theta, phi)
     # Tesseral (real ) harmonics using Racah's normalization convention
     #   S_LM(THETA,PHI) =
     #  [C_LM(THETA,PHI)+(-1)^M C_L(-M)(THETA,PHI)]/sqrt(2)     for M > 0

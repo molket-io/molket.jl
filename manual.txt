@@ -1,0 +1,27 @@
+
+// To initialize a quantum circuit for n qubits use 
+
+function qc_initialize(n::Int64,
+    c_sv= nothing,
+#     c_sv::Union{Vector{Float64}, Vector{Int64}, Vector{ComplexF64}} = nothing,
+    err_tol::Float64=err_tol,
+    q_order::String="big-endian")
+
+    --> this will create an instance class and structure of data with the following: 
+
+Input:
+===============
+
+
+
+
+Output: 
+===============
+ Example: 
+         qc = qc_initialize(nqubits)
+
+ qc.n            :: the number of qubits
+ qc.q_states     :: the states of Hilbert space 
+ qc.state_vector :: by default it is the 1* |000 ...0 > state
+                    1* |000 ...0 > + 0* |000 ...1 > + .....
+

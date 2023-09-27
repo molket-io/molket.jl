@@ -30,7 +30,7 @@ using LinearAlgebra
 using ..quantum_gates: Qgate
 
 # export functions
-export qc_initialize 
+export qc_initialize, init_register, print_initstate, print_statevector
 
 # Define the default error tolerance for checking the norm of the vector
 const err_tol = 1e-16
@@ -98,16 +98,17 @@ end # end init_register
 
 Base.@kwdef mutable struct qc_initstruct
     # Initialize the quantum register
-    n::Int64
+    n_qubits::Int64
     q_order::String
     n_bas::Int64
     n_dim::Int64
-    register::Array{Float64,1}
+    state_vector::Array{Float64,1}
     q_states::Array{Float64,2}
 end # end qc_initialize
 
 function qc_initialize(n::Int64, 
-    c_sv::Union{Vector{Float64}, Vector{Int64}, Vector{ComplexF64}} = nothing, 
+    c_sv= nothing, 
+#     c_sv::Union{Vector{Float64}, Vector{Int64}, Vector{ComplexF64}} = nothing,     
     err_tol::Float64=err_tol,
     q_order::String="big-endian")
     # Initialize the quantum register
@@ -156,17 +157,33 @@ function qc_initialize(n::Int64,
         error("The statevector is not normalized")
     end
 
-    return qc_initstruct(n, q_order, n_bas, n_dim, state_vector, q_states)
+    return qc_initstruct(n_qubits, q_order, n_bas, n_dim, state_vector, q_states)
 end # end qc_initialize  
 
 # print the initial state of the quantum register
-function print_initstate(qc::qc_initstruct)
+# print the initial state of the quantum register
+function print_initstate(qc)
     # print the initial state of the quantum register
     # qc::qc_initstruct: quantum register
     # return: print the initial state of the quantum register
-
     println("The initial state of the quantum register is: ")
-    println(qc.register)
+    println(qc.state_vector)
+    # print the initial state of the quantum register with the quantum 
+    # states in the computational basis
+    println("The initial state of the quantum register with the 
+    quantum states in the computational basis is: ")
+    q_table = zeros(Int, qc.n_dim, qc.n_qubits)
+    for iq=1:qc.n_qubits
+        for i in 1:qc.n_dim
+            q_table[i,iq] = trunc(Int, qc.q_states[i,iq])
+        end # end for
+    end # end for
+
+
+    for i in 1:qc.n_dim
+        println( qc.q_states[i], " | ", string(q_table[i,:]), ">")
+    end # end for
+    #show(stdout, "text/plain", [qc.state_vector trunc(Int,qc.q_states)])
 end # end print_initstate
 
 end # end module

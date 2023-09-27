@@ -6,7 +6,7 @@ using LinearAlgebra
 
 
 include("../lib_sphericalharmonics/MKsphericalharmonics.jl")
-using ..MKsphericalharmonics: Ylm, Clm, Slm
+using ..MK_SphericalHarmonics: Ylm, Clm, Slm
 
 include("../lib_SpecialPolynomials/MK_SpecialPolynomials.jl")
 using ..MK_SpecialPolynomials: laguerre, glaguerre

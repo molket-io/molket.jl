@@ -151,107 +151,110 @@ function Qgate_T2D(gate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}},
   end
 
 end # Qgate_T2D
+
 # Type 2: tensor product of a 4D quantum gate acting on a target qubit 
 # ... based on a state of a control qubit.
 function Qgate_CU_T4D(Ugate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}}, 
-    qubit_control::Int64, qubit_target::Int64, nqubits::Int64,
-    qubit_start_1::Bool=conventions.qubit_start_1,
-    big_endian::Bool=conventions.big_endian,
-    err_tol::Float64=err_tol)
-    # gate is used to construct the quantum gate acting on the qubit_target 
-    # ... of a quantum register of nqubits qubits provided that the qubit_control 
-    # ... is in the state |1>.
-    # Ugate is a reduced representation of the quantum gate: minimal representation 
-    # ... of the quantum gate in 2x2 matrices, 4x4 matrices, etc.
-    # By default "Ugate" is given in big endian convention. 
-    # Check the convention of the "Ugate" carefully until we have a better testing 
-    # ... procedure.
-  
-    # Check the convention of the index_start where qubit counting can start from 0 or 1
-    # ... the default is 0.
-    # nqubits is the number of qubits in the quantum register
-    if !qubit_start_1
-      qubit_end = nqubits # number of qubits in the quantum register
-      qubit_begin = 1
-    else
-      qubit_end = nqubits-1 # number of qubits in the quantum register
-      qubit_begin = 0
-    end
-    # Initiate matrices 
-    II = Matrix(I, 2, 2) # indentity matrix
-    # Initiate the qubit states 
-    ket_0 = [1; 0]
-    ket_1 = [0; 1]
-  
-    # Initiate the denisty matrix, will be used depending 
-    # ... on the state of the control qubit
-    rho_0 = ket_0*ket_0' # |0><0| --> if the state is |0>
-    rho_1 = ket_1*ket_1' # |1><1| --> if the state is |1>
-  
+  qubit_control::Int64, qubit_target::Int64, nqubits::Int64,
+  qubit_start_1::Bool=conventions.qubit_start_1,
+  big_endian::Bool=conventions.big_endian,
+  err_tol::Float64=err_tol)
+  # gate is used to construct the quantum gate acting on the qubit_target 
+  # ... of a quantum register of nqubits qubits provided that the qubit_control 
+  # ... is in the state |1>.
+  # Ugate is a reduced representation of the quantum gate: minimal representation 
+  # ... of the quantum gate in 2x2 matrices, 4x4 matrices, etc.
+  # By default "Ugate" is given in big endian convention. 
+  # Check the convention of the "Ugate" carefully until we have a better testing 
+  # ... procedure.
 
-    # strategy: the gate is constructed via two sums
-    # sum 1
-    Gate_matrix_I = 1 # initialize the gate matrix
-    if qubit_control == qubit_target
-      error("The control and target qubits are the same")
-    # Big-endian convention
-    elseif (big_endian && (qubit_control < qubit_target)) || 
-            (!big_endian && (qubit_control > qubit_target))     
-      # construct the quantum gate acting on the qubit qubit_control
-        for iq in qubit_begin:qubit_end
-            if iq == qubit_control 
-              Gate_matrix_I = kron(Gate_matrix_I, rho_0)
-            elseif iq == qubit_target
-              Gate_matrix_I = kron(Gate_matrix_I, II)
-            else
-              Gate_matrix_I = kron(Gate_matrix_I, II)
-            end
-        end # for loop
-    # Little-endien convention
-    else
-        for iq in qubit_begin:qubit_end
-            if iq == qubit_control 
-                Gate_matrix_I = kron(Gate_matrix_I,rho_0)
-            elseif iq == qubit_target
-                  Gate_matrix_I = kron( Gate_matrix_I,II)
-            else
-                Gate_matrix_I = kron(Gate_matrix_I,II)
-            end
-        end # for loop
-    end # if big_endian && q_control < q_target ...
-    # sum 2
-    Gate_matrix_II = 1 # initialize the gate matrix
-    if qubit_control == qubit_target
-      error("The control and target qubits are the same")
-    # Big-endian convention
-    elseif (big_endian && (qubit_control < qubit_target)) || 
-            (!big_endian && (qubit_control > qubit_target))     
-      # construct the quantum gate acting on the qubit qubit_control
-        for iq in qubit_begin:qubit_end
-            if iq == qubit_control 
+  # Check the convention of the index_start where qubit counting can start from 0 or 1
+  # ... the default is 0.
+  # nqubits is the number of qubits in the quantum register
+  if !qubit_start_1
+    qubit_end = nqubits # number of qubits in the quantum register
+    qubit_begin = 1
+  else
+    qubit_end = nqubits-1 # number of qubits in the quantum register
+    qubit_begin = 0
+  end
+  # Initiate matrices 
+  II = Matrix(I, 2, 2) # indentity matrix
+  # Initiate the qubit states 
+  ket_0 = [1; 0]
+  ket_1 = [0; 1]
+
+  # Initiate the denisty matrix, will be used depending 
+  # ... on the state of the control qubit
+  rho_0 = ket_0*ket_0' # |0><0| --> if the state is |0>
+  rho_1 = ket_1*ket_1' # |1><1| --> if the state is |1>
+
+
+  # strategy: the gate is constructed via two sums
+  # sum 1
+  Gate_matrix_I = 1 # initialize the gate matrix
+  if qubit_control == qubit_target
+    error("The control and target qubits are the same")
+  # Big-endian convention
+  elseif (big_endian && (qubit_control < qubit_target)) || 
+          (!big_endian && (qubit_control > qubit_target))     
+    # construct the quantum gate acting on the qubit qubit_control
+      for iq in qubit_begin:qubit_end
+          if iq == qubit_control 
+            Gate_matrix_I = kron(Gate_matrix_I, rho_0)
+          elseif iq == qubit_target
+            Gate_matrix_I = kron(Gate_matrix_I, II)
+          else
+            Gate_matrix_I = kron(Gate_matrix_I, II)
+          end
+      end # for loop
+  # Little-endien convention
+  else
+      for iq in qubit_begin:qubit_end
+          if iq == qubit_control 
+              Gate_matrix_I = kron(Gate_matrix_I,rho_0)
+          elseif iq == qubit_target
+                Gate_matrix_I = kron( Gate_matrix_I,II)
+          else
+              Gate_matrix_I = kron(Gate_matrix_I,II)
+          end
+      end # for loop
+  end # if big_endian && q_control < q_target ...
+  # sum 2
+  Gate_matrix_II = 1 # initialize the gate matrix
+  if qubit_control == qubit_target
+    error("The control and target qubits are the same")
+  # Big-endian convention
+  elseif (big_endian && (qubit_control < qubit_target)) || 
+          (!big_endian && (qubit_control > qubit_target))     
+    # construct the quantum gate acting on the qubit qubit_control
+      for iq in qubit_begin:qubit_end
+          if iq == qubit_control 
+            Gate_matrix_II = kron(Gate_matrix_II, rho_1)
+          elseif iq == qubit_target
+            Gate_matrix_II = kron(Gate_matrix_II, Ugate)
+          else
+            Gate_matrix_II = kron(Gate_matrix_II, II)
+          end
+      end # for loop
+  # Little-endien convention
+  else
+      for iq in qubit_begin:qubit_end
+          if iq == qubit_control 
               Gate_matrix_II = kron(Gate_matrix_II, rho_1)
-            elseif iq == qubit_target
-              Gate_matrix_II = kron(Gate_matrix_II, Ugate)
-            else
-              Gate_matrix_II = kron(Gate_matrix_II, II)
-            end
-        end # for loop
-    # Little-endien convention
-    else
-        for iq in qubit_begin:qubit_end
-            if iq == qubit_control 
-                Gate_matrix_II = kron(Gate_matrix_II, rho_1)
-            elseif iq == qubit_target
-                  Gate_matrix_II = kron( Gate_matrix_II,Ugate)
-            else
-                Gate_matrix_II = kron(Gate_matrix_II,II)
-            end
-        end # for loop
-      end # if big_endian && q_control < q_target ...
-      Gate_matrix = Gate_matrix_I + Gate_matrix_II
+          elseif iq == qubit_target
+                Gate_matrix_II = kron( Gate_matrix_II,Ugate)
+          else
+              Gate_matrix_II = kron(Gate_matrix_II,II)
 
-    return Gate_matrix
-  end # tensor_gate_apply
+          end
+      end # for loop
+    end # if big_endian && q_control < q_target ...
+    Gate_matrix = Gate_matrix_I + Gate_matrix_II
+
+  return Gate_matrix
+end # tensor_gate_apply
+
 
 # Type 3: tensor product of a 8D quantum gate acting on a target qubit 
 # ... based on a state of two control qubits.
@@ -264,6 +267,8 @@ function Qgate_CU_T8D(Ugate::Union{Array{Float64}, Array{Int64}, Array{ComplexF6
     println("The gate is not implemented yet")
     return 0
 end # Qgate_CU_T8D
+
+## Qubit tensor product 
 
 
 ### Tensor decomposition: general case ###
