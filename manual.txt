@@ -25,3 +25,55 @@ Output:
  qc.state_vector :: by default it is the 1* |000 ...0 > state
                     1* |000 ...0 > + 0* |000 ...1 > + .....
 
+
+############################ Example 1 #########################
+################################################################
+
+# Retrieve the main libraries 
+#############################
+using LinearAlgebra
+using SpecialFunctions
+using AssociatedLegendrePolynomials
+
+
+# import conventions
+include("conventions.jl")
+  using .conventions: big_endian
+# import quantum gates
+include("quantum_gates.jl")
+using ..quantum_gates: Qgate
+
+include("quantum_circuit.jl")
+using ..quantum_circuit: qc_initialize, init_register, print_initstate
+#using ..quantum_circuit: qc_initialize, init_register, print_initstate
+
+Ugate2 = [0 1; 1 0]
+qubit_control = 0
+qubit_target = 1
+nqubits = 2
+err_tol = 1e-8
+
+
+register, q_states, n_bas, n_dim, q_order  = init_register(nqubits)
+
+qc = qc_initialize(nqubits)
+
+##  printing
+qc.state_vector
+qc.q_states
+qc.n_qubits
+
+# print the initial register/statevector
+print_initstate(qc)
+
+
+## Now, we can do a change like applying an operator on a quantum 
+#   circuit
+
+apply_op(qc, H2d) 
+
+## this will apply the gate H2d to the quantum register of qc
+# and update the statevector coefficients after the action 
+# of the operator. 
+
+

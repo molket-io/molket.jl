@@ -319,3 +319,27 @@ function Ylm(l::Int64, m::Int64, theta::Float64, phi::Float64)
 end # function
 
 
+# print the initial state of the quantum register
+function print_initstate(qc)
+    # print the initial state of the quantum register
+    # qc::qc_initstruct: quantum register
+    # return: print the initial state of the quantum register
+    println("The initial state of the quantum register is: ")
+    println(qc.state_vector)
+    # print the initial state of the quantum register with the quantum 
+    # states in the computational basis
+    println("The initial state of the quantum register with the 
+    quantum states in the computational basis is: ")
+    q_table = zeros(Int, qc.n_dim, qc.n_qubits)
+    for iq=1:qc.n_qubits
+        for i in 1:qc.n_dim
+            q_table[i,iq] = trunc(Int, qc.q_states[i,iq])
+        end # end for
+    end # end for
+
+
+    for i in 1:qc.n_dim
+        println( qc.q_states[i], " | ", string(q_table[i,:]), ">")
+    end # end for
+    #show(stdout, "text/plain", [qc.state_vector trunc(Int,qc.q_states)])
+end # end print_initstate

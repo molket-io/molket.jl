@@ -57,7 +57,7 @@ if conventions.verbose1
 end
 
 ## only export the basic gates structure 
-export qgate, Qgate
+export qgate, Qgate, Rz_gate1
 
 # Define the default error tolerance for checking the unitary condition
 const err_tol = 1e-16
@@ -175,6 +175,20 @@ function Rz_gate(theta::Float64)
     Rz = U_gate(0.0,0.0,theta)
     return Rz
 end # end Rz_gate
+
+function Rz_gate1(phi::Float64)
+    # Rphi_gate(phi)
+    # phi::Float64: angle of rotation around the z-axis
+    # return: Rphi gate
+    # a custom gate definition based on the matrix represrenation of 
+    # ... the rotation around the z-axis mentioned in the following paper 
+    # arXiv:2209.08187v1 [quant-ph] 16 Sep 2022
+    Rz = [
+        exp(-im*phi/2) 0;
+        0              exp(im*phi/2)
+    ]
+    return Rz
+end # end Rphi_gate
 
 function C_U_gate(q_control::Int64,q_target::Int64, 
     theta::Float64, phi::Float64, lambda::Float64, gamma::Float64,
@@ -635,7 +649,7 @@ Base.@kwdef struct qgate
         Z::Array{Float64,2} = [1 0; 0 -1]
     ## Define Clifford gates ##
     # Hadamard gate
-        H::Array{Float64,2} = [1 1; 1 -1]
+        H::Array{Float64,2} =(1/sqrt(2))* [1 1; 1 -1]
     # Phase gate (Pi/2 gate)
         S::Array{ComplexF64,2} = [1 0; 0 1im]
     # S_dag gate equivalent to sqrt(Z) gate

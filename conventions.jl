@@ -16,6 +16,7 @@ module conventions
 # choose between "big-endian" or "little-endian"
 big_endian::Bool = true
 qubit_begin::Bool = false
+qubit_start_1::Bool = false
 
 # Define the level of the printed information 
 verbose::Int64 = 0 # 0: no print, 1: print, 2: print and plot
