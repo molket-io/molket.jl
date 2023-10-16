@@ -34,7 +34,7 @@ export qc_initialize, init_register, print_initstate,
 show_statevector
 
 # Define the default error tolerance for checking the norm of the vector
-const err_tol = 1e-16
+const err_tol = 1e-15
 
 
 # Initialize the order of the qubits in the quantum register
@@ -245,12 +245,11 @@ function show_statevector(qc)
     # print the initial state of the quantum register
     # qc::qc_initstruct: quantum register
     # return: print the initial state of the quantum register
-    println("The initial state of the quantum register is: ")
+    #println("The initial state of the quantum register is: ")
     #println(qc.state_vector)
     # print the initial state of the quantum register with the quantum 
     # states in the computational basis
-    println("The initial state of the quantum register with the 
-    quantum states in the computational basis is: ")
+    #println("the quantum register is: ")
     q_table = zeros(Int, qc.n_dim, qc.n_qubits)
     for iq=1:qc.n_qubits
         for i in 1:qc.n_dim
@@ -279,10 +278,15 @@ function apply_op(qc, Qgate)
         error("The quantum gate is not square")
     end # end if
     # check if the quantum gate is unitary
-    if ishermitian(Qgate) == false
-        error("The quantum gate is not unitary")
-    end # end if
-    
+    #if ishermitian(Qgate) == false
+    #    error("The quantum gate is not unitary")
+    #end # end if
+    # check the unitary condition
+    UU = Qgate'*Qgate
+    II = Matrix(I, Qgate_dim[1], Qgate_dim[2])
+    if isapprox(UU, II,rtol=err_tol) == false
+        error("The gate is not unitary")
+    end
     # check if the dimensions of the quantum gate 
     # ... and the quantum register do match 
     if Qgate_dim[1] != Nstates
