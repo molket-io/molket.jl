@@ -15,9 +15,10 @@ module conventions
 # ... in the quantum circuit
 # choose between "big-endian" or "little-endian"
 big_endian::Bool = true
+little_endian::Bool = false
 qubit_begin::Bool = false
 qubit_start_1::Bool = false
-
+show_matrix::Bool= false
 # Define the level of the printed information 
 verbose::Int64 = 0 # 0: no print, 1: print, 2: print and plot
 verbose0::Bool = verbose == 0
@@ -25,6 +26,7 @@ verbose1::Bool = verbose == 1
 verbose2::Bool = verbose == 2
 
 
-export big_endian, verbose, verbose0, verbose1, verbose2
+export big_endian, verbose, verbose0, verbose1, verbose2, little_endian,
+show_matrix
 
 end # module conventions

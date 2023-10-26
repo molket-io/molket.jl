@@ -67,7 +67,8 @@ const err_tol = 1e-16
 ###################################################################################
 # Controlled gates constructor 
 function ctrl_gate(gate)
-# Controlled gate consutructor  
+# Controlled gate constructor  
+# works only with big-endian
         r_mat = size(gate)[1]
         c_mat = size(gate)[2]
         # First check the gate is 2x2 or square matrix 
@@ -106,7 +107,8 @@ function user_gate(
     return gate
 end # end custom_gate gate
 
-function U_gate(theta::Float64, phi::Float64, lambda::Float64)
+function U_gate(theta, phi, lambda)
+#function U_gate(theta::Float64, phi::Float64, lambda::Float64)
     # U_general_gate(theta, phi, lambda)
     # theta::Float64: angle of rotation around the x-axis
     # phi::Float64: angle of rotation around the y-axis
@@ -118,8 +120,9 @@ function U_gate(theta::Float64, phi::Float64, lambda::Float64)
     return U
 end # end U_general_gate
 
-function phase_gate(lambda::Float64)
-    # phase_gate(lambda)
+function phase_gate(lambda)
+    # phase_gate(lambda), a special case of the U-gate 
+    # U_gate is general phase gate; a function of three Euler angles
     # lambda::Float64: angle of rotation around the z-axis
     # return: phase gate
     # Formal definition of the phase gate
@@ -128,6 +131,20 @@ function phase_gate(lambda::Float64)
     P = U_gate(0.0,0.0,lambda)
     return P
 end # end phase_gate
+
+
+function phase_gate_lambda(lambda::Float64)
+    # phase_gate(lambda)
+    # lambda::Float64: angle of rotation around the z-axis
+    # return: phase gate
+    # Formal definition of the phase gate
+    # P(lambda) = u(0,0,lambda)
+    # Define the phase gate
+    P = [ 1 0;
+          0 exp(1im*lambda)
+        ]
+    return P
+end # end phase_gate2
 
 function rotation_gate(theta::Float64,pauli_gate::String)
     # rotation_gate(theta, pauli_axis)
@@ -637,9 +654,13 @@ Base.@kwdef struct qgate
     # Identity gate
         II::Array{Float64,2} = Matrix(I,2,2)
     # Define a general single qubit gate: a unitary gate U of dimension 2x2
+        ctrl_gate::Function = ctrl_gate
+    # Define general ctrl gate in big-endian 
         U::Function = U_gate
-    # Define general P (phase) gate of dimension 2x2
+    # Define P (phase) gate of dimension 2x2, with Qiskit definition. 
         P::Function = phase_gate
+    # Define general P (phase) gate of dimension 2x2
+   #     Phase_U::Function = phase_gate2
     ## Define Pauli gates ## 
     # Pauli-X gate
         X::Array{Float64,2} = [0 1; 1 0]

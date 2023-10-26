@@ -1,0 +1,23 @@
+
+# plotting functions for the quantum circuits 
+https://github.com/QuantumSavory/Quantikz.jl
+
+## random functions 
+Julia Base.rand function 
+https://docs.julialang.org/en/v1/stdlib/Random/
+
+
+## source code QPE
+https://qiskit.org/ecosystem/algorithms/_modules/qiskit_algorithms/phase_estimators/ipe.html#IterativePhaseEstimation
+
+# QPE Qiskit
+https://www.youtube.com/watch?v=aLSM0_H8hUE
+
+# Qiskit Iterative quantum phase estimation
+https://qiskit.org/documentation/stable/0.28/tutorials/textbook/01_IQPE.html
+
+# Implementing Quantum Phase Estimation Algorithm using Qiskit
+https://medium.com/@deveshq/implementing-quantum-phase-estimation-algorithm-using-qiskit-e808e8167d32
+
+
+

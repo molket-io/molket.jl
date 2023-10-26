@@ -1,0 +1,14 @@
+
+
+- Random statevectors: generate random statevectors complex and 
+                       real coefficients
+
+- Op function: clean up 
+
+- Integrate the explicit functions of Alain in a separate library. 
+
+- qubit rest and re-use + midcircuit measurements 
+
+===============================================================
+
+

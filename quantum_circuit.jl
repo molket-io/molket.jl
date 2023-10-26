@@ -110,9 +110,11 @@ Base.@kwdef mutable struct qc_initstruct
     q_order::String
     n_bas::Int64
     n_dim::Int64
-    state_vector::Union{Vector{Float64},Vector{Int64}, Vector{ComplexF64}}
+    state_vector
 #    state_vector::Array{Float64,1}
     q_states
+    big_endian::Bool
+    show_matrix::Bool
 #    q_states::Array{Float64,2}
 end # end qc_initialize
 
@@ -206,7 +208,8 @@ end # end if n_qubits == 1
     end
 
 #    return qc_initstruct(n_qubits, q_order, n_bas, n_dim, 1.0, [1.0 1.0])
-    return qc_initstruct(n_qubits, q_order, n_bas, n_dim, state_vector, q_states)
+    return qc_initstruct(n_qubits, q_order, n_bas, n_dim, state_vector, 
+                        q_states, big_endian)
 
 #    return 1
 
@@ -215,11 +218,10 @@ end # end qc_initialize
 
 function qc_init(n::Int64,
     big_endian::Bool=conventions.big_endian,
-    #big_endian::Bool=conventions.big_endian,
     c_sv= nothing, 
 #     c_sv::Union{Vector{Float64}, Vector{Int64}, Vector{ComplexF64}} = nothing,     
-    err_tol::Float64=err_tol
-    )
+    err_tol::Float64=err_tol,
+    show_matrix::Bool=conventions.show_matrix)
     # Initialize the quantum register
     # n::Int64: number of qubits
     # q_order::String: order of the qubits in the quantum register
@@ -303,7 +305,8 @@ end # end if n_qubits == 1
     end
 
 #    return qc_initstruct(n_qubits, q_order, n_bas, n_dim, 1.0, [1.0 1.0])
-    return qc_initstruct(n_qubits, q_order, n_bas, n_dim, state_vector, q_states)
+    return qc_initstruct(n_qubits, q_order, n_bas, n_dim, state_vector, 
+                        q_states, big_endian,show_matrix)
 
 #    return 1
 
