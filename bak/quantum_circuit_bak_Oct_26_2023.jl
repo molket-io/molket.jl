@@ -113,12 +113,107 @@ Base.@kwdef mutable struct qc_initstruct
     state_vector
 #    state_vector::Array{Float64,1}
     q_states
-# big_endian is used to enforce a default convention 
-    big_endian::Bool 
-# show_matrix is used to print the matrix or the quantum gates by default    
+    big_endian::Bool
     show_matrix::Bool
 #    q_states::Array{Float64,2}
 end # end qc_initialize
+
+
+function qc_initialize_v3(n::Int64,
+    big_endian::Bool=conventions.big_endian,
+    #big_endian::Bool=conventions.big_endian,
+    c_sv= nothing, 
+#     c_sv::Union{Vector{Float64}, Vector{Int64}, Vector{ComplexF64}} = nothing,     
+    err_tol::Float64=err_tol
+    )
+    # Initialize the quantum register
+    # n::Int64: number of qubits
+    # q_order::String: order of the qubits in the quantum register
+    # return: quantum register of n qubits
+    # q_order == "big-endian"
+    # q_order == "little-endian"
+
+    # start the function
+    n_bas = 2 # number of basis states
+    n_qubits = n # number of qubits
+    n_dim = 2^n # dimensions of the quantum register/Hilbert space
+    state_vector = zeros(2^n) # initialize the state_vector
+    # create the default statevector of the quantum register: 
+    state_vector[1] = 1 # set the initial state to |000 ...0>
+    q_states = zeros(2^n, n) # initialize the quantum states
+    q_tab = [0;1] # initialize the basis vectors quantum table
+   
+    # store the order of the qubits
+    if big_endian
+        q_order = "big-endian"
+    else
+        q_order = "little-endian"
+    end
+
+    ## notes:
+    # the minimum number of qubits is 2 
+    if n_qubits == 1
+        q_states = q_tab # basis vectors
+        # check if the user has provided a custom statevector
+        # err_tol = 1e-16 # error tolerance for checking the unitary condition
+        if c_sv != nothing
+            # check if the custom statevector has the correct dimensions
+            if length(c_sv) != n_dim
+                error("The custom statevector has the wrong dimensions")
+            end
+            if isapprox(norm(c_sv), 1, rtol=err_tol) == false
+                error("The custom statevector is not normalized")
+            end
+            state_vector = c_sv
+        end 
+   else
+        n_count = n_bas
+        if !big_endian
+            for i = 2:n_qubits
+                q_tab = [ q_tab zeros(n_count,1)
+                       q_tab  ones(n_count,1) ]
+                n_count = n_count*2
+            end
+        else
+            for i = 2:n_qubits
+                q_tab = [zeros(n_count,1) q_tab
+                        ones(n_count,1) q_tab]
+                n_count = n_count*2
+            end
+        end
+        # for i = 2:n_qubits
+        #     q_tab = [zeros(n_count,1) q_tab
+        #             ones(n_count,1) q_tab]
+        #     n_count = n_count*2
+        # end
+    q_states = q_tab # basis vectors 
+end # end if n_qubits == 1
+
+    # check if the user has provided a custom statevector
+    # err_tol = 1e-16 # error tolerance for checking the unitary condition
+    if c_sv != nothing
+        # check if the custom statevector has the correct dimensions
+        if length(c_sv) != n_dim
+            error("The custom statevector has the wrong dimensions")
+        end
+        if isapprox(norm(c_sv), 1, rtol=err_tol) == false
+            error("The custom statevector is not normalized")
+        end
+        state_vector = c_sv
+    end
+
+    # one final check for the statevector
+    if isapprox(norm(state_vector), 1, rtol=err_tol) == false
+        error("The statevector is not normalized")
+    end
+
+#    return qc_initstruct(n_qubits, q_order, n_bas, n_dim, 1.0, [1.0 1.0])
+    return qc_initstruct(n_qubits, q_order, n_bas, n_dim, state_vector, 
+                        q_states, big_endian)
+
+#    return 1
+
+end # end qc_initialize  
 
 
 function qc_init(n::Int64,
@@ -217,7 +312,6 @@ end # end if n_qubits == 1
 
 end # end qc_initialize  
 
-
 # print the initial state of the quantum register
 function show_statevector_v1(qc)
     # print the initial state of the quantum register
@@ -228,36 +322,22 @@ function show_statevector_v1(qc)
     # print the initial state of the quantum register with the quantum 
     # states in the computational basis
     #println("the quantum register is: ")
-    q_states = qc.q_states
-    state_vector = qc.state_vector
-    # for now, the q_order is used to print the basis of the Hilbert space
-    # ... in the computational basis with little-endian order 
-    if qc.q_order == "little-endian"
-        q_states, q_ind = MK_sortrows(q_states)
-        state_vector = state_vector[q_ind[:,1]]
-    end # end if
-    
-    # Note: the basis of the Hilbert space are the quantum states
-    # .. they are arranged and sorted in the computational basis 
-    # .. according to the q_order=lille-endian.
-    # .. accordingly, the statevector is arranged and sorted in the
-    # .. computational basis according to the q_order=little-endian 
-    # .. as well. 
-
-    # convert the quantum states to integers
     q_table = zeros(Int, qc.n_dim, qc.n_qubits)
     for iq=1:qc.n_qubits
         for i in 1:qc.n_dim
-            q_table[i,iq] = trunc(Int, q_states[i,iq])
+            q_table[i,iq] = trunc(Int, qc.q_states[i,iq])
         end # end for
     end # end for
-  
+
     for i in 1:qc.n_dim
-        println( state_vector[i], " * | ", string(q_table[i,:]), ">")
+        println( qc.state_vector[i], " * | ", string(q_table[i,:]), ">")
     end # end for
     #show(stdout, "text/plain", [qc.state_vector trunc(Int,qc.q_states)])
 end # end print_initstate
 
+
+
+# print the initial state of the quantum register
 # print the initial state of the quantum register
 function show_statevector(qc)
     # print the initial state of the quantum register
@@ -272,7 +352,7 @@ function show_statevector(qc)
     state_vector = qc.state_vector
     # for now, the q_order is used to print the basis of the Hilbert space
     # ... in the computational basis with little-endian order 
-    if !big_endian
+    if qc.q_order == "little-endian"
         q_states, q_ind = MK_sortrows(q_states)
         state_vector = state_vector[q_ind[:,1]]
     end # end if
@@ -332,7 +412,6 @@ function op(qc, Qgate)
     qc.state_vector = state_vector
     return qc
 end # end apply_gate!
-
 
 
 end # end module
