@@ -343,3 +343,188 @@ function print_initstate(qc)
     end # end for
     #show(stdout, "text/plain", [qc.state_vector trunc(Int,qc.q_states)])
 end # end print_initstate
+
+
+#####################################
+## create a table 
+# data structure 
+# converting our simulator to other simulators: TKET, QASM, Qiskit, ...etc. 
+# array 
+[action gate/operator control1_qubit,   control2_qubit, target_qubit theta     phi     lambda; gate_object
+    1     "H"           nothing               nothing         0    nothing  nothing  nothing;    name of function or matrix   
+    2     "CX"        0                     nothing         1    nothing  nothing  nothing;
+    3     "CX"        1                     nothing         2    nothing  nothing  nothing;
+    4      "X"          nothing               nothing         1                             ;
+    5      "Y"          nothing               nothing         2                             ;
+    6      "Z"          nothing               nothing         3                             ;
+    7      "S"          nothing               nothing         4                             ;
+   8      "CU"         0                     nothing         2     pi/2      pi/3      pi/4;
+    ]
+   # n_qubits
+    # barrier gate: indentity with the tag plotted on the circuit 1, when drawing the circuit 
+    # it should appear in the plot. 
+    # **************************
+    # convention
+    # op: taget qubit, control1 qubit, control2 qubit, ...
+
+
+
+    function plot_circuit(qc; nqubits )
+        # plot the circuit
+        # plot the statevector
+        nqubits = qc.n_qubits
+        convention = qc.convention
+        gate_table = qc.gate_table
+
+
+    end
+
+    # references 
+    # https://typedtables.juliadata.org/stable/man/table/
+
+    #####
+
+    op_tab[1,1:9]=["action" "gate/operator" "control1_qubit" 
+    "control2_qubit" "target_qubit" "theta" "phi" "lambda" "gate_object"]
+
+    ============
+
+    n = size(Qgate)[1]
+    if n == 2
+        if q1_control == nothing
+            if q2_control == nothing
+                if q_target == 1
+                    return q_T2D(Qgate)
+                else
+                    return q_T2D(Qgate)
+                end
+            else
+                if q_target == 1
+                    return q_T2D(Qgate)
+                else
+                    return q_T2D(Qgate)
+                end
+            end
+        else
+            if q2_control == nothing
+                if q_target == 1
+                    return q_T2D(Qgate)
+                else
+                    return q_T2D(Qgate)
+                end
+            else
+                if q_target == 1
+                    return q_T2D(Qgate)
+                else
+                    return q_T2D(Qgate)
+                end
+            end
+        end
+    elseif n == 4
+        if q1_control == nothing
+            if q2_control == nothing
+                if q_target == 1
+                    return q_T4D(Qgate)
+                else
+                    return q_T4D(Qgate)
+                end
+            else
+                if q_target == 1
+                    return q_T4D(Qgate)
+                else
+                    return q_T4D(Qgate)
+                end
+            end
+        else
+            if q2_control == nothing
+                if q_target == 1
+                    return q_T4D(Qgate)
+                else
+                    return q_T4D(Qgate)
+                end
+            else
+                if q_target == 1
+                    return q_T4D(Qgate)
+                else
+                    return q_T4D(Qgate)
+                end
+            end
+        end
+    else
+        error("The matrix is not a valid quantum gate")
+    end 
+
+
+    # prepare the gate in case of being parametrized, i.e. rotational gate 
+# or a phase gate
+function qU_prep(Qgate::Function;
+    theta=nothing,phi=nothing,lambda =nothing)
+if theta == nothing && phi == nothing && lambda == nothing
+return Qgate
+
+elseif theta != nothing && phi != nothing && lambda != nothing
+Qgate = Qgate(theta,phi,lambda)
+return Qgate
+
+elseif theta != nothing && phi != nothing
+Qgate = Qgate(theta,phi,0)
+return Qgate
+elseif theta != nothing && lambda != nothing
+Qgate = Qgate(theta,0,lambda)
+return Qgate
+elseif phi != nothing && lambda != nothing
+Qgate = Qgate(0,phi,lambda)
+return Qgate
+elseif theta != nothing
+Qgate = Qgate(theta,0,0)
+return Qgate
+elseif phi != nothing
+Qgate = Qgate(0,phi,0)
+return Qgate
+elseif lambda != nothing
+Qgate = Qgate(0,0,lambda)
+return Qgate
+else
+return error("Error in Qgate_rot_prep")
+end
+
+end # end Qgate_prep
+
+
+Qgate = q.U
+q1_control=nothing
+q2_control=nothing 
+q_target::Int64 = 0
+theta=nothing
+phi=nothing
+lambda=pi/2 
+#err_tol=1e-14
+# Apply a quantum gate to the quantum register
+# qc::quantum register
+# gate::Qgate: quantum gate, 2x2 matrix representing a single qubit gate
+# return: quantum register with the quantum gate applied
+# reading the data from the quantum register qc
+Nqubits = qc.n_qubits
+Nstates = qc.n_dim
+state_vector = qc.state_vector
+    
+# first record the name of the function
+Qgate_name = string(Qgate)
+Qgate = qU_prep(Qgate,theta=theta,phi=phi,lambda=lambda)
+Qgate_dim = size(Qgate)
+if Qgate_dim[1] != Qgate_dim[2]
+    error("The quantum gate is not square")
+end # end if
+UU = Qgate'*Qgate
+II = Matrix(I, Qgate_dim[1], Qgate_dim[2])
+if isapprox(UU, II,rtol=err_tol) == false
+    error("The gate is not unitary")
+end
+if Qgate_dim[1] != Nstates
+    error("The quantum gate and the quantum register do not match")
+end # end if
+
+gate_tensor = Op_tensor(Qgate, nqubits=Nqubits,q1control=q1_control, 
+q2control=q2_control,qtarget=q_target,
+big_endian=big_endian)
+state_vector = gate_tensor * state_vector

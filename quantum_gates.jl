@@ -57,7 +57,7 @@ if conventions.verbose1
 end
 
 ## only export the basic gates structure 
-export qgate, Qgate, Rz_gate1
+export qgate, q, Rz_gate1
 
 # Define the default error tolerance for checking the unitary condition
 const err_tol = 1e-16
@@ -66,9 +66,15 @@ const err_tol = 1e-16
 ## Define the functions to construct the quantum gates ###
 ###################################################################################
 # Controlled gates constructor 
-function ctrl_gate(gate)
+function ctrl_gate(gate;big_endian::Bool=conventions.big_endian)
 # Controlled gate constructor  
 # works only with big-endian
+# gate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}}: basic gate
+# big_endian::Bool: convention of the qubits, by default is true
+# check if big_endian is true or else print error 
+    if !big_endian
+        error("The little-endian convention is not valid for ctrl_gate function")
+    end
         r_mat = size(gate)[1]
         c_mat = size(gate)[2]
         # First check the gate is 2x2 or square matrix 
@@ -107,7 +113,7 @@ function user_gate(
     return gate
 end # end custom_gate gate
 
-function U_gate(theta, phi, lambda)
+function U_gate(;theta=0.0, phi=0.0, lambda=0.0)
 #function U_gate(theta::Float64, phi::Float64, lambda::Float64)
     # U_general_gate(theta, phi, lambda)
     # theta::Float64: angle of rotation around the x-axis
@@ -120,7 +126,7 @@ function U_gate(theta, phi, lambda)
     return U
 end # end U_general_gate
 
-function phase_gate(lambda)
+function phase_gate(;lambda)
     # phase_gate(lambda), a special case of the U-gate 
     # U_gate is general phase gate; a function of three Euler angles
     # lambda::Float64: angle of rotation around the z-axis
@@ -128,13 +134,14 @@ function phase_gate(lambda)
     # Formal definition of the phase gate
     # P(lambda) = u(0,0,lambda)
     # Define the phase gate
-    P = U_gate(0.0,0.0,lambda)
+    P = U_gate(lambda=lambda)
     return P
 end # end phase_gate
 
 
-function phase_gate_lambda(lambda::Float64)
+function phase_gate_lambda(lambda)
     # phase_gate(lambda)
+    # this implementation is similar to function phase_gate(lambda)
     # lambda::Float64: angle of rotation around the z-axis
     # return: phase gate
     # Formal definition of the phase gate
@@ -146,7 +153,7 @@ function phase_gate_lambda(lambda::Float64)
     return P
 end # end phase_gate2
 
-function rotation_gate(theta::Float64,pauli_gate::String)
+function rotation_gate(theta::Float64;pauli_gate::String)
     # rotation_gate(theta, pauli_axis)
     # theta::Float64: angle of rotation around the pauli_axis
     # pauli_axis::String: pauli axis of rotation
@@ -166,7 +173,7 @@ function rotation_gate(theta::Float64,pauli_gate::String)
     end
 end # end rotation_gate
 
-function Rx_gate(theta::Float64)
+function Rx_gate(theta)
     # Rx_gate(theta)
     # theta::Float64: angle of rotation around the x-axis
     # return: Rx gate
@@ -175,7 +182,7 @@ function Rx_gate(theta::Float64)
     return Rx
 end # end Rx_gate
 
-function Ry_gate(theta::Float64)
+function Ry_gate(theta)
     # Ry_gate(theta)
     # theta::Float64: angle of rotation around the y-axis
     # return: Ry gate
@@ -184,7 +191,7 @@ function Ry_gate(theta::Float64)
     return Ry
 end # end Ry_gate
 
-function Rz_gate(theta::Float64)
+function Rz_gate(theta)
     # Rz_gate(theta)
     # theta::Float64: angle of rotation around the z-axis
     # return: Rz gate
@@ -193,7 +200,7 @@ function Rz_gate(theta::Float64)
     return Rz
 end # end Rz_gate
 
-function Rz_gate1(phi::Float64)
+function Rz_gate1(phi)
     # Rphi_gate(phi)
     # phi::Float64: angle of rotation around the z-axis
     # return: Rphi gate
@@ -207,7 +214,7 @@ function Rz_gate1(phi::Float64)
     return Rz
 end # end Rphi_gate
 
-function C_U_gate(q_control::Int64,q_target::Int64, 
+function C_U_gate(q_control::Int64,q_target::Int64; 
     theta::Float64, phi::Float64, lambda::Float64, gamma::Float64,
     big_endian::Bool=conventions.big_endian)
     # C_U_gate()
@@ -731,6 +738,6 @@ Base.@kwdef struct qgate
    
 end # end qgate structure
     
-Qgate = qgate()
+q = qgate()
 
 end # end module quantum_gates

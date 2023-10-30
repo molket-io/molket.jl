@@ -18,7 +18,18 @@ big_endian::Bool = true
 little_endian::Bool = false
 qubit_begin::Bool = false
 qubit_start_1::Bool = false
-show_matrix::Bool= false
+show_op_mat::Bool= false # show the matrix of the operators
+show_qc_mat::Bool= false # show the matrix of the quantum circuit
+
+# Julia Machine epsilon
+# https://docs.julialang.org/en/v1/manual/integers-and-floating-point-numbers/#Machine-epsilon
+err_tol = 100.0*eps(Float64) #err_tol=2.22044e-14
+
+# Seed for the Random module
+# https://docs.julialang.org/en/v1/stdlib/Random/
+# Random.seed! (seed)
+seed = 1234
+
 # Define the level of the printed information 
 verbose::Int64 = 0 # 0: no print, 1: print, 2: print and plot
 verbose0::Bool = verbose == 0
@@ -27,6 +38,6 @@ verbose2::Bool = verbose == 2
 
 
 export big_endian, verbose, verbose0, verbose1, verbose2, little_endian,
-show_matrix
+show_matrix, err_tol, seed, show_qc_mat, show_op_mat
 
 end # module conventions

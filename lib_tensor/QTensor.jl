@@ -29,13 +29,13 @@ include("../conventions.jl")
 #  using ..conventions: big_endian, qubit_start_1
 # import quantum gates
 include("../quantum_gates.jl")
-using ..quantum_gates: Qgate
+using ..quantum_gates: q
 
 # Export the tensor functions
 export tensor_mul, tensor_decomp, tensor_constr 
 
 # Export the tensor constructors
-export Qgate_tenop, Qgate_T2D, Qgate_CU_T4D, Qgate_CU_T8D
+export q_tenop, q_T2D, q_CU_T4D, q_CU_T8D
 
 # Define the default error tolerance for checking the unitary condition
 const err_tol = 1e-16
@@ -69,7 +69,7 @@ end # tensor_mul
 
 # Tensor multiplication: construct quantum operator acting on a 
 # ... a given qubit
-function Qgate_tenop(gate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}}, 
+function q_tenop(gate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}}, 
                  q0_control::Int64, q1_control::Int64,
                  q_target::Int64, nqubits::Int64,
                  big_endian::Bool=conventions.big_endian,
@@ -105,8 +105,9 @@ return gate # return the quantum gate acting on the qubit qubit_index
 end # Qgate_tenop
 
 # Type 1: tensor product of a 2D quantum gate acting on a qubit
-function Qgate_T2D(gate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}}, 
-                 qubit_target::Int64, nqubits::Int64,
+#function q_T2D(gate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}},
+function q_T2D(gate;
+                 qtarget::Int64, nqubits::Int64,
                  big_endian::Bool=conventions.big_endian,
                  err_tol::Float64=err_tol)
   # gate_qn is used to construct the quantum gate acting on the qubit i 
@@ -120,6 +121,7 @@ function Qgate_T2D(gate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}},
   # Return statevector after the action of the operator 
   # First construct the array of the qubits 
   # ... in the quantum register
+  qubit_target = qtarget
   qubits = Array{Int64}(undef, nqubits)
   qubits = collect(0:nqubits-1)
 
@@ -164,8 +166,9 @@ end # Qgate_T2D
 
 # Type 2: tensor product of a 4D quantum gate acting on a target qubit 
 # ... based on a state of a control qubit.
-function Qgate_CU_T4D(Ugate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}}, 
-  qubit_control::Int64, qubit_target::Int64, nqubits::Int64,
+#function q_T4D(Ugate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}};
+function q_T4D(Ugate;
+  qcontrol::Int64, qtarget::Int64, nqubits::Int64,
   qubit_start_1::Bool=conventions.qubit_start_1,
   big_endian::Bool=conventions.big_endian,
   err_tol::Float64=err_tol)
@@ -177,7 +180,10 @@ function Qgate_CU_T4D(Ugate::Union{Array{Float64}, Array{Int64}, Array{ComplexF6
   # By default "Ugate" is given in big endian convention. 
   # Check the convention of the "Ugate" carefully until we have a better testing 
   # ... procedure.
-
+  # shorten the word qubit to q in the keywords of the function 
+  qubit_control = qcontrol
+  qubit_target = qtarget
+  
   # Check the convention of the index_start where qubit counting can start from 0 or 1
   # ... the default is 0.
   # nqubits is the number of qubits in the quantum register
@@ -268,7 +274,7 @@ end # tensor_gate_apply
 
 # Type 3: tensor product of a 8D quantum gate acting on a target qubit 
 # ... based on a state of two control qubits.
-function Qgate_CU_T8D(Ugate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}}, 
+function q_CU_T8D(Ugate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}}, 
     qubit_control_I::Int64, qubit_control_II::Int64, qubit_target::Int64, nqubits::Int64,
     qubit_start_1::Bool=conventions.qubit_start_1,
     big_endian::Bool=conventions.big_endian,
