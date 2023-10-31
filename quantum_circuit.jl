@@ -302,8 +302,8 @@ elseif q2control == nothing
 # only control qubit1 and target qubit
 # return the qubit gate in the Hilbert space of a
 # quantum register size
-Qgate = q_T4D(Qgate, qcontrol=q1control, qtarget=qtarget, 
-         nqubits=nqubits, big_endian=big_endian)
+Qgate = q_T4D(Qgate, qtarget, nqubits; qcontrol=q1control,  
+              big_endian=big_endian)
 return Qgate
 end # end if q1control == nothing && q2control == nothing
 # now, let's export the gate represented in the Hilbert space of a
