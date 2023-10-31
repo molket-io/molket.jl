@@ -272,9 +272,8 @@ end # end if
 end # end Qgate_prep
 
 # function to choose the corresponding tensor library 
-function Op_tensor(Qgate;nqubits::Int64, 
-    q1control=nothing,q2control=nothing,qtarget::Int64,
-    big_endian::Bool=conventions.big_endian)
+function Op_tensor(Qgate, qtarget::Int64, nqubits::Int64;
+    q1control=nothing,q2control=nothing, big_endian::Bool=conventions.big_endian)
 # get the size of Qgate matrix 
 # get the size of Qgate
 n_rows, n_cols = size(Qgate)   
@@ -297,8 +296,7 @@ if q1control == nothing && q2control == nothing
 # no control qubit1 and qubit2, only target qubit
 # return the qubit gate in the Hilbert space of a 
 # quantum register size 
-Qgate = q_T2D(Qgate, qtarget=qtarget, nqubits=nqubits, 
-       big_endian=big_endian)
+Qgate = q_T2D(Qgate, qtarget, nqubits,big_endian=big_endian)
 return Qgate
 elseif q2control == nothing
 # only control qubit1 and target qubit
@@ -428,7 +426,8 @@ function qc_init(n::Int64;
     op_table = init_op_tab()
 #    return qc_initstruct(n_qubits, q_order, n_bas, n_dim, 1.0, [1.0 1.0])
     return qc_initstruct(n_qubits, q_order, n_bas, n_dim, state_vector, 
-                        q_states, op_table, qc_matrix,big_endian,show_op_mat,show_qc_mat)
+                        q_states, op_table, qc_matrix, big_endian, 
+                        show_op_mat, show_qc_mat)
 
 #    return 1
 
@@ -512,8 +511,8 @@ function op_v1(qc, Qgate)
 end # end apply_gate!
 
 # function to update the table of quantum gates and operations
-function qctab_update(;qctab, Qgate, 
-    q1control=nothing,q2control=nothing,qtarget::Int64,
+function qctab_update(qctab, Qgate, qtarget::Int64; 
+    q1control=nothing,q2control=nothing,
     theta=nothing,phi=nothing,lambda=nothing, 
     op_name=nothing,op_mat=nothing,
     big_endian::Bool=conventions.big_endian)
@@ -521,11 +520,7 @@ function qctab_update(;qctab, Qgate,
     # get the size of the rows of the table
     n_rows, n_cols = size(qctab)
     qctab1 = qctab
-    if n_rows==1
-        op_ind = 1
-    else
-        op_ind = op_ind+1
-    end
+    op_ind = n_rows 
     # table is 
     #op_tab[1,1:10]=["Op_ind","Op","q1_control","q2_control","q_target", 
     #"theta","phi","lambda","object","op_mat"]
@@ -562,8 +557,9 @@ end # end qctab_update
     
 
 # Apply a quantum gate to the quantum register
-function op(qc, Qgate; q1_control=nothing, q2_control=nothing, 
-    q_target::Int64, theta=nothing, phi=nothing, lambda=nothing, 
+function op(qc, Qgate, qtarget::Int64; 
+    q1_control=nothing, q2_control=nothing, 
+    theta=nothing, phi=nothing, lambda=nothing, 
     err_tol::Float64=conventions.err_tol)
     # Apply a quantum gate to the quantum register
     # qc::quantum register
@@ -604,12 +600,12 @@ function op(qc, Qgate; q1_control=nothing, q2_control=nothing,
     end
     # check if the dimensions of the quantum gate 
     # ... and the quantum register do match 
-    if Qgate_dim[1] != Nstates
-        error("The quantum gate and the quantum register do not match")
-    end # end if
+    #if Qgate_dim[1] != Nstates
+    #    error("The quantum gate and the quantum register do not match")
+    #end # end if
 
-    gate_tensor = Op_tensor(Qgate, nqubits=Nqubits,q1control=q1_control, 
-                            q2control=q2_control,qtarget=q_target,
+    gate_tensor = Op_tensor(Qgate, qtarget,Nqubits,q1control=q1_control, 
+                            q2control=q2_control,
                             big_endian=big_endian)
     # and the gate is evaluated directly
     # in the Hilbert space
@@ -623,11 +619,10 @@ function op(qc, Qgate; q1_control=nothing, q2_control=nothing,
 
     # update the op_table
     qctab = qc.op_table
-    qc.op_table = qctab_update(qctab=qctab, Qgate=Qgate, 
-    q1control=q1_control,q2control=q2_control,qtarget=q_target,
+    qc.op_table = qctab_update(qctab, Qgate, qtarget, 
+    q1control=q1_control,q2control=q2_control,
     theta=theta,phi=phi,lambda=lambda, 
     op_name=Qgate_name,op_mat= qc.qc_matrix)
-
     return qc
 end # end apply_gate!
 

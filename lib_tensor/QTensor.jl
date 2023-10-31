@@ -106,10 +106,8 @@ end # Qgate_tenop
 
 # Type 1: tensor product of a 2D quantum gate acting on a qubit
 #function q_T2D(gate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}},
-function q_T2D(gate;
-                 qtarget::Int64, nqubits::Int64,
-                 big_endian::Bool=conventions.big_endian,
-                 err_tol::Float64=err_tol)
+function q_T2D(gate, qtarget::Int64, nqubits::Int64;
+              big_endian::Bool=conventions.big_endian, err_tol::Float64=err_tol)
   # gate_qn is used to construct the quantum gate acting on the qubit i 
   # ... of a quantum register of nqubits qubits
   # gate is a reduced representation of the quantum gate: minimal representation 
@@ -167,8 +165,7 @@ end # Qgate_T2D
 # Type 2: tensor product of a 4D quantum gate acting on a target qubit 
 # ... based on a state of a control qubit.
 #function q_T4D(Ugate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}};
-function q_T4D(Ugate;
-  qcontrol::Int64, qtarget::Int64, nqubits::Int64,
+function q_T4D(Ugate, qtarget::Int64, nqubits::Int64; qcontrol::Int64=0,
   qubit_start_1::Bool=conventions.qubit_start_1,
   big_endian::Bool=conventions.big_endian,
   err_tol::Float64=err_tol)
@@ -181,6 +178,8 @@ function q_T4D(Ugate;
   # Check the convention of the "Ugate" carefully until we have a better testing 
   # ... procedure.
   # shorten the word qubit to q in the keywords of the function 
+  # the function q_T4D contains qcontrol = 0 by default.
+  
   qubit_control = qcontrol
   qubit_target = qtarget
   
