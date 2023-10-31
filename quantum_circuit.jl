@@ -33,6 +33,10 @@ include("conventions.jl")
  include("quantum_gates.jl")
 using ..quantum_gates: q
 
+# import the tensor library
+include("lib_tensor/QTensor.jl")
+using ..QTensor: q_T2D, q_T4D
+
 # import the sorting function
 include("lib_useful/custom_functions.jl")
 using ..custom_functions: MK_sortrows
@@ -113,10 +117,16 @@ Base.@kwdef mutable struct qc_initstruct
     state_vector
 #    state_vector::Array{Float64,1}
     q_states
+# table of quantum gates and the operations on the quantum register    
+    op_table::Matrix
+# Store the quantum circuit matrix representation
+    qc_matrix
 # big_endian is used to enforce a default convention 
     big_endian::Bool 
 # show_matrix is used to print the matrix or the quantum gates by default    
-    show_matrix::Bool
+    show_op_mat::Bool
+# show the matrix representation of the quantum circuit
+    show_qc_mat::Bool
 #    q_states::Array{Float64,2}
 end # end qc_initialize
 
@@ -302,6 +312,25 @@ end # end if q1control == nothing && q2control == nothing
 # quantum register size
 end # end Op_tensor
 
+# initialize a table with first row of [action gate/operator control1_qubit,   control2_qubit, target_qubit theta     phi     lambda; gate_object]
+function init_op_tab()
+    # initialize the first row of the table q_tab 
+    # Op_ind is the index of the operation in the quantum circuit
+    # Op is the name of the operation
+    # q1_control is the first control qubit
+    # q2_control is the second control qubit
+    # q_target is the target qubit
+    # theta is the angle of rotation theta 
+    # phi is the angle of rotation phi
+    # lambda is the angle of rotation lambda
+    # object is the object of the operation, could be a gate function or a matrix
+    # op_mat is the matrix representation of the operation
+#    op_tab[2,1:9]=["init" "init" 0 0 0 0 0 0 0]
+    op_tab = Matrix(undef, 1,10)
+    op_tab[1,1:10]=["Op_ind","Op","q1_control","q2_control","q_target", 
+                "theta","phi","lambda","object","op_mat"]
+    return op_tab
+end # end init_op_tab
 
 
 function qc_init(n::Int64;
@@ -398,7 +427,7 @@ function qc_init(n::Int64;
     # initiate the table of quantum gates and operations
     op_table = init_op_tab()
 #    return qc_initstruct(n_qubits, q_order, n_bas, n_dim, 1.0, [1.0 1.0])
-    return qc_initstruct1(n_qubits, q_order, n_bas, n_dim, state_vector, 
+    return qc_initstruct(n_qubits, q_order, n_bas, n_dim, state_vector, 
                         q_states, op_table, qc_matrix,big_endian,show_op_mat,show_qc_mat)
 
 #    return 1
@@ -482,6 +511,55 @@ function op_v1(qc, Qgate)
     return qc
 end # end apply_gate!
 
+# function to update the table of quantum gates and operations
+function qctab_update(;qctab, Qgate, 
+    q1control=nothing,q2control=nothing,qtarget::Int64,
+    theta=nothing,phi=nothing,lambda=nothing, 
+    op_name=nothing,op_mat=nothing,
+    big_endian::Bool=conventions.big_endian)
+
+    # get the size of the rows of the table
+    n_rows, n_cols = size(qctab)
+    qctab1 = qctab
+    if n_rows==1
+        op_ind = 1
+    else
+        op_ind = op_ind+1
+    end
+    # table is 
+    #op_tab[1,1:10]=["Op_ind","Op","q1_control","q2_control","q_target", 
+    #"theta","phi","lambda","object","op_mat"]
+
+    # initialize the second row of the table: if nothing is provided 
+    # then print nothing in the cell of the table
+    if op_name == nothing
+        op_name = "nothing"
+    end
+    if q1control == nothing
+        q1control = "nothing"
+    end
+    if q2control == nothing
+        q2control = "nothing"
+    end
+    if theta == nothing
+        theta = "nothing"
+    end
+    if phi == nothing
+        phi = "nothing"
+    end
+    if lambda == nothing
+        lambda = "nothing"
+    end
+    if op_mat == nothing
+        op_mat = "nothing"
+    end
+    # update the table
+    qctab2 = Matrix(undef, 1,10)
+    qctab2[1,1:10] = [op_ind, op_name, q1control, q2control, qtarget, 
+        theta, phi, lambda, Qgate, op_mat]
+        return [qctab1; qctab2]
+end # end qctab_update
+    
 
 # Apply a quantum gate to the quantum register
 function op(qc, Qgate; q1_control=nothing, q2_control=nothing, 
@@ -545,10 +623,10 @@ function op(qc, Qgate; q1_control=nothing, q2_control=nothing,
 
     # update the op_table
     qctab = qc.op_table
-    #qc.op_table = qctab_update(qctab=qctab, Qgate=Qgate, 
-    #q1control=q1_control,q2control=q2_control,qtarget=q_target,
-    #theta=theta,phi=phi,lambda=lambda, 
-    #op_name=Qgate_name,op_mat= qc.qc_matrix)
+    qc.op_table = qctab_update(qctab=qctab, Qgate=Qgate, 
+    q1control=q1_control,q2control=q2_control,qtarget=q_target,
+    theta=theta,phi=phi,lambda=lambda, 
+    op_name=Qgate_name,op_mat= qc.qc_matrix)
 
     return qc
 end # end apply_gate!
