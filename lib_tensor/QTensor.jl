@@ -46,8 +46,7 @@ const err_tol = 1e-16
 # Note: we use the sparse matrices from the Julia package SparseArrays.jl
 
 # Tensor multiplication: general case
-function tensor_mul(A::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}}, 
-                    B::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}})
+function tensor_mul(A,B)
 #function tensor_mul(A::SparseMatrixCSC, B::SparseMatrixCSC)
   # A and B are sparse matrices
   # check if A and B are sparse matrices
@@ -214,7 +213,7 @@ function q_T4D(Ugate, qtarget::Int64, nqubits::Int64; qcontrol::Int64=0,
   elseif (big_endian && (qubit_control < qubit_target)) || 
           (!big_endian && (qubit_control > qubit_target))     
     # construct the quantum gate acting on the qubit qubit_control
-      for iq in qubit_begin:qubit_end
+      for iq in 0:nqubits-1
           if iq == qubit_control 
             Gate_matrix_I = kron(Gate_matrix_I, rho_0)
           elseif iq == qubit_target
@@ -225,7 +224,7 @@ function q_T4D(Ugate, qtarget::Int64, nqubits::Int64; qcontrol::Int64=0,
       end # for loop
   # Little-endien convention
   else
-      for iq in qubit_begin:qubit_end
+      for iq in 0:nqubits-1
           if iq == qubit_control 
               Gate_matrix_I = kron(Gate_matrix_I,rho_0)
           elseif iq == qubit_target
@@ -243,7 +242,7 @@ function q_T4D(Ugate, qtarget::Int64, nqubits::Int64; qcontrol::Int64=0,
   elseif (big_endian && (qubit_control < qubit_target)) || 
           (!big_endian && (qubit_control > qubit_target))     
     # construct the quantum gate acting on the qubit qubit_control
-      for iq in qubit_begin:qubit_end
+      for iq in 0:nqubits-1
           if iq == qubit_control 
             Gate_matrix_II = kron(Gate_matrix_II, rho_1)
           elseif iq == qubit_target
@@ -254,7 +253,7 @@ function q_T4D(Ugate, qtarget::Int64, nqubits::Int64; qcontrol::Int64=0,
       end # for loop
   # Little-endien convention
   else
-      for iq in qubit_begin:qubit_end
+      for iq in 0:nqubits-1
           if iq == qubit_control 
               Gate_matrix_II = kron(Gate_matrix_II, rho_1)
           elseif iq == qubit_target
