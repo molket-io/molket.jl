@@ -278,7 +278,7 @@ function Op_tensor(Qgate, qtarget::Int64, nqubits::Int64;
 # get the size of Qgate
 n_rows, n_cols = size(Qgate)   
 # test if the size of the gate is 2x2
-if n_rows != 2 && n_cols != 2
+if n_rows != 2 || n_cols != 2
 error("The size of the gate is not 2x2")
 end 
 

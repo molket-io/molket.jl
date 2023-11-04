@@ -105,8 +105,8 @@ end # Qgate_tenop
 
 # Type 1: tensor product of a 2D quantum gate acting on a qubit
 #function q_T2D(gate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}},
-function q_T2D(gate, qtarget::Int64, nqubits::Int64;
-              big_endian::Bool=conventions.big_endian, err_tol::Float64=err_tol)
+function q_T2D(gate, qtarget::Int64, nqubits::Int64)
+  # big_endian::Bool=conventions.big_endian,
   # gate_qn is used to construct the quantum gate acting on the qubit i 
   # ... of a quantum register of nqubits qubits
   # gate is a reduced representation of the quantum gate: minimal representation 
@@ -119,7 +119,6 @@ function q_T2D(gate, qtarget::Int64, nqubits::Int64;
   # First construct the array of the qubits 
   # ... in the quantum register
   qubit_target = qtarget
-  qubits = Array{Int64}(undef, nqubits)
   qubits = collect(0:nqubits-1)
 
   # check the convention of the index_start where qubit counting can start from 0 or 1
@@ -130,33 +129,35 @@ function q_T2D(gate, qtarget::Int64, nqubits::Int64;
   #  qubit_begin = 1
   #else
     qubit_end = nqubits-1 # number of qubits in the quantum register
-    qubit_begin = 0
+    qubit_initial= 0
   #end
   # check if qubit_target is an integer, and in range
-  if !isa(qubit_target, Int64) || qubit_target <  qubit_begin || qubit_target > nqubits-1
-    error("The target qubit must be an integer in range: ", qubit_begin, " ", qubit_end)
+  if !isa(qubit_target, Int64) || qubit_target <  qubit_initial || qubit_target > nqubits-1
+    error("The target qubit must be an integer in range: ", qubit_initial, " ", qubit_end)
   end
     # the tensor product used to construct the quantum gate 
   # ... acting on the qubit qubit_index is independent of the convention. 
   gate_construct = 1
   II = Matrix(I, 2, 2)
-  if big_endian
-    for i in  qubit_begin:qubit_end
-    if i == qubit_target
-    gate_construct = kron(gate,gate_construct)
-    else
-    gate_construct = kron(gate_construct,II)
-    end # if i == qubit_target
+  #if big_endian
+    for i in  qubit_initial:qubit_end
+        if i == qubit_target
+          gate_construct = kron(gate_construct,gate)
+        else
+            gate_construct = kron(II,gate_construct)
+        end # if i == qubit_target
     end # for loop
-    else
-    for i in  qubit_end:-1:qubit_begin
-    if i == qubit_target
-    gate_construct = kron(gate,gate_construct)
-    else
-    gate_construct = kron(gate_construct,II)
-    end # if i == qubit_target
-    end # for loop
-  end # if big_endian
+  #else
+    #for i in  qubit_end:-1:qubit_initial
+#    for i in  qubit_initial:qubit_end
+#       if i == qubit_target
+#    gate_construct = kron(gate,gate_construct)
+#           gate_construct = kron(gate,gate_construct)
+#        else
+#           gate_construct = kron(gate_construct,II)
+#        end # if i == qubit_target
+#    end # for loop
+#  end # if big_endian
   # note: the little-endian convention is not tested yet
 return gate_construct
 end # Qgate_T2D
