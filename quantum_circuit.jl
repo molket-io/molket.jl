@@ -296,7 +296,7 @@ if q1control == nothing && q2control == nothing
 # no control qubit1 and qubit2, only target qubit
 # return the qubit gate in the Hilbert space of a 
 # quantum register size 
-Qgate = q_T2D(Qgate, qtarget, nqubits,big_endian=big_endian)
+Qgate = q_T2D(Qgate, qtarget, nqubits)
 return Qgate
 elseif q2control == nothing
 # only control qubit1 and target qubit
@@ -560,18 +560,22 @@ end # end qctab_update
 function op(qc, Qgate, qtarget::Int64; 
     q1_control=nothing, q2_control=nothing, 
     theta=nothing, phi=nothing, lambda=nothing, 
+    user_gate::Bool=false,
     err_tol::Float64=conventions.err_tol)
     # Apply a quantum gate to the quantum register
     # qc::quantum register
     # gate::Qgate: quantum gate, 2x2 matrix representing a single qubit gate
     # return: quantum register with the quantum gate applied
     # reading the data from the quantum register qc
+    # the supplied quantum gate by the user should match the size of the 
+    # quantum register
     Nqubits = qc.n_qubits
     Nstates = qc.n_dim
     state_vector = qc.state_vector
     
     # first record the name of the function
     Qgate_name = string(Qgate)
+if !user_gate
     # Evaluate the gate and prepare the gate for the tensor product
     # First, check if the function is a rotational/phase gate 
     # and if so Evaluate it over the theta, phi, and lambda parameters
@@ -616,6 +620,27 @@ function op(qc, Qgate, qtarget::Int64;
 
     # update the matrix representation of the quantum circuit
     qc.qc_matrix = gate_tensor * qc.qc_matrix
+else 
+    # if the user has provided a custom gate, then the gate is evaluated
+    # directly in the Hilbert space
+    # Apply the quantum gate to the quantum register
+    # test the gate being square
+    Qgate_dim = size(Qgate)
+    if Qgate_dim[1] != Qgate_dim[2]
+        error("The quantum gate is not square")
+    end # end if
+    # check if the size of the matrix matches the quantum register
+    if Qgate_dim[1] != Nstates
+        error("The quantum gate and the quantum register do not match")
+    end # end if
+    # check if the quantum gate is unitary
+    UU = Qgate'*Qgate
+    II = Matrix(I, Qgate_dim[1], Qgate_dim[2])
+    if isapprox(UU, II,rtol=err_tol) == false
+        error("The gate is not unitary")
+    end
+    qc.qc_matrix = Qgate * qc.qc_matrix
+end
 
     # update the op_table
     qctab = qc.op_table

@@ -35,7 +35,7 @@ using ..quantum_gates: q
 export tensor_mul, tensor_decomp, tensor_constr 
 
 # Export the tensor constructors
-export q_tenop, q_T2D, q_CU_T4D, q_CU_T8D
+export q_tenop, q_T2D,q_CU_T4D, q_CU_T8D
 
 # Define the default error tolerance for checking the unitary condition
 const err_tol = 1e-16
@@ -105,7 +105,7 @@ end # Qgate_tenop
 
 # Type 1: tensor product of a 2D quantum gate acting on a qubit
 #function q_T2D(gate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}},
-function q_T2D(gate, qtarget::Int64, nqubits::Int64)
+function q_T2D_old(gate, qtarget::Int64, nqubits::Int64)
   # big_endian::Bool=conventions.big_endian,
   # gate_qn is used to construct the quantum gate acting on the qubit i 
   # ... of a quantum register of nqubits qubits
@@ -161,6 +161,68 @@ function q_T2D(gate, qtarget::Int64, nqubits::Int64)
   # note: the little-endian convention is not tested yet
 return gate_construct
 end # Qgate_T2D
+
+
+
+####===========================================####
+# Type 1: tensor product of a 2D quantum gate acting on a qubit
+#function q_T2D(gate::Union{Array{Float64}, Array{Int64}, Array{ComplexF64}},
+function q_T2D(gate, qtarget::Int64, nqubits::Int64)
+  # big_endian::Bool=conventions.big_endian)
+  # gate_qn is used to construct the quantum gate acting on the qubit i 
+  # ... of a quantum register of nqubits qubits
+  # gate is a reduced representation of the quantum gate: minimal representation 
+  # ... of the quantum gate in 2x2 matrices, 4x4 matrices, etc.
+  # qubit_target is the index of the qubit on which the gate acts
+  # nqubits is the number of qubits in the quantum register
+  # big_endian is a boolean variable that indicates whether the qubits are
+  # ... ordered in big endian or little endian
+  # Return statevector after the action of the operator 
+  # First construct the array of the qubits 
+  # ... in the quantum register
+  qubit_target = qtarget
+  qubits = collect(0:nqubits-1)
+  # check the convention of the index_start where qubit counting can start from 0 or 1
+  # ... the default is 0.
+  # nqubits is the number of qubits in the quantum register
+  #if !qubit_start_1
+   # qubit_end = nqubits # number of qubits in the quantum register
+  #  qubit_begin = 1
+  #else
+  qubit_end = nqubits-1 # number of qubits in the quantum register
+  qubit_initial= 0
+#end
+# check if qubit_target is an integer, and in range
+if !isa(qubit_target, Int64) || qubit_target <  qubit_initial || qubit_target > nqubits-1
+  error("The target qubit must be an integer in range: ", qubit_initial, " ", qubit_end)
+end
+  # the tensor product used to construct the quantum gate 
+# ... acting on the qubit qubit_index is independent of the convention. 
+gate_construct = 1
+II = Matrix(I, 2, 2)
+#if big_endian
+  for i in  qubit_initial:qubit_end
+      if i == qubit_target
+        gate_construct = kron(gate_construct,gate)
+      else
+          gate_construct = kron(gate_construct,II)
+      end # if i == qubit_target
+  end # for loop
+#else
+  #  for i in  qubit_end:-1:qubit_initial
+  #  for i in  qubit_initial:qubit_end
+  #     if i == qubit_target
+  #        gate_construct = kron(gate,gate_construct)
+  #      else
+  #         gate_construct = kron(II,gate_construct)
+  #      end # if i == qubit_target
+  #  end # for loop
+  #end # if big_endian
+  # note: the little-endian convention is not tested yet
+  return gate_construct
+end # Qgate_T2D
+
+####===========================================####
 
 # Type 2: tensor product of a 4D quantum gate acting on a target qubit 
 # ... based on a state of a control qubit.
