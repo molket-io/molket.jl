@@ -1,5 +1,5 @@
 
-The authors thanks Prof. Gerrit C. Groenenboom for the useful discussions and ideas in the beginning of the development of MolKet package.
+The authors thank Prof. Gerrit C. Groenenboom for the useful discussions and ideas in the beginning of the development of MolKet package.
 
 The authors also thank users of the package for their feedback. 
 
