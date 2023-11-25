@@ -43,7 +43,7 @@ using ..custom_functions: MK_sortrows
 
 # export functions
 export qc_initialize, init_register, print_initstate,
-show_statevector
+show_statevector, state_vector
 
 # Define the default error tolerance for checking the norm of the vector
 #const err_tol = 1e-15
@@ -460,7 +460,7 @@ function qc_init_old2(n::Int64;
 end # end qc_initialize  
 
 
-function qc_init_test(n::Int64;
+function qc_init(n::Int64;
     big_endian::Bool=conventions.big_endian,
     c_sv= nothing, 
 #     c_sv::Union{Vector{Float64}, Vector{Int64}, Vector{ComplexF64}} = nothing,     
@@ -540,7 +540,7 @@ function qc_init_test(n::Int64;
     # initiate the table of quantum gates and operations
     op_table = init_op_tab()
 #    return qc_initstruct(n_qubits, q_order, n_bas, n_dim, 1.0, [1.0 1.0])
-    return qc_initstruct1(n_qubits, q_order, n_bas, n_dim, state_vector, 
+    return qc_initstruct(n_qubits, q_order, n_bas, n_dim, state_vector, 
                         q_states, q_bits,op_table, qc_matrix, big_endian, 
                         show_op_mat, show_qc_mat)
 
@@ -589,7 +589,7 @@ function show_statevector_old(qc)
 end # end print_initstate
 
 # print the initial state of the quantum register
-function show_statevector(qc)
+function show_statevector_v2(qc)
     # print the initial state of the quantum register
     # qc::qc_initstruct: quantum register
     # return: print the initial state of the quantum register
@@ -630,6 +630,57 @@ function show_statevector(qc)
     end # end for
     #show(stdout, "text/plain", [qc.state_vector trunc(Int,qc.q_states)])
 end # end print_initstate
+
+# print the initial state of the quantum register
+function statevector(qc)
+    # print the initial state of the quantum register
+    # qc::qc_initstruct: quantum register
+    # return: print the initial state of the quantum register
+    #println("The initial state of the quantum register is: ")
+    #println(qc.state_vector)
+    # print the initial state of the quantum register with the quantum 
+    # states in the computational basis
+    #println("the quantum register is: ")
+    q_states = qc.q_states
+    state_vector = qc.state_vector
+    q_bits = qc.q_bits
+    big_endian = qc.big_endian
+    # for now, the q_order is used to print the basis of the Hilbert space
+    # ... in the computational basis with little-endian order 
+    if !big_endian
+        q_states, q_ind = MK_sortrows(q_states)
+        state_vector = state_vector[q_ind[:,1]]
+        q_bits = q_bits[q_ind[:,1],:]
+    end # end if
+    
+    return q_states, state_vector, q_bits 
+
+end # end statevector
+
+function show_statevector(qc)
+    #print the initial state of the quantum register
+    # qc::qc_initstruct: quantum register
+    # return: print the initial state of the quantum register
+    #println("The initial state of the quantum register is: ")
+    #println(qc.state_vector)
+    # print the initial state of the quantum register with the quantum 
+    # states in the computational basis
+    #println("the quantum register is: ")
+    q_states, state_vector, q_bits = statevector(qc)
+
+    # convert the quantum states to integers
+    q_table = zeros(Int, qc.n_dim, qc.n_qubits)
+    for iq=1:qc.n_qubits
+        for i in 1:qc.n_dim
+            q_table[i,iq] = trunc(Int, q_states[i,iq])
+        end # end for
+    end # end for
+  
+    for i in 1:qc.n_dim
+    #    println( state_vector[i], " * | ", string(q_table[i,:]), ">")
+        println( state_vector[i], " * |", q_bits[i], ">")
+    end # end for
+end # end show_statevector
 
 
 # Apply a quantum gate to the quantum register
