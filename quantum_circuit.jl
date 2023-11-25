@@ -39,11 +39,11 @@ using ..QTensor: q_T2D, q_T4D
 
 # import the sorting function
 include("lib_useful/custom_functions.jl")
-using ..custom_functions: MK_sortrows
+using .custom_functions: MK_sortrows
 
 # export functions
 export qc_initialize, init_register, print_initstate,
-show_statevector, state_vector
+show_statevector, statevector
 
 # Define the default error tolerance for checking the norm of the vector
 #const err_tol = 1e-15
