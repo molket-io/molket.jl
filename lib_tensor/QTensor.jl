@@ -6,8 +6,13 @@ module QTensor
 ## QTensor is MolKet's tensor library for quantum computing.
 # © MIT LICENSE 2023 by MolKet
 ## wwww.molket.io 
+# ==================================================================
 # Author: Taha Selim
+# Contributors: Alain Chancé
 # Tests: Taha Selim and Alain Chancé
+# Check the online notes for the documentation and math details 
+# ... of the tensor library QTensor.jl behind the code.
+# ==================================================================
 # References 
 # Einstein summation convention:
 # https://en.wikipedia.org/wiki/Einstein_notation
