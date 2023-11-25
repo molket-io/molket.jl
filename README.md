@@ -2,4 +2,5 @@
 © MolKet 2023, MIT License
 
 © Taha Selim & Alain Chance
-https://www.molket.io/
+
+For more details, visit our website https://www.molket.io/
