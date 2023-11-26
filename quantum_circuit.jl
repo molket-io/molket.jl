@@ -3,7 +3,7 @@ module quantum_circuit
 # This module is part of MolKet.jl package.
 ## For more information, please visit out website:
 # www.molket.io
-
+# This module contains the quantum circuit constructor
 # Function module file looks up the location of a module from the method table
 module_file(modu) = String(first(methods(getfield(modu, :eval))).file)
 # Reference: 
