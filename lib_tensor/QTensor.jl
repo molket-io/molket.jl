@@ -8,7 +8,6 @@ module QTensor
 ## wwww.molket.io 
 # ==================================================================
 # Author: Taha Selim
-# Contributors: Alain Chancé
 # Tests: Taha Selim and Alain Chancé
 # Check the online notes for the documentation and math details 
 # ... of the tensor library QTensor.jl behind the code.
