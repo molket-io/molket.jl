@@ -33,7 +33,7 @@ if conventions.verbose1
 end
 
 # export functions
-export z_measure, x_measure, peek_states
+export z_measure, x_measure, peek_states, plot_bas4shots
 
 function peek_states(qc)
     # Having a peek at the states of a quantum register in the computational basis
@@ -216,6 +216,27 @@ function x_measure(qc, qubit::Int; big_endian::Bool=true, show::Bool=true)
     # Return the statevectors after the measurements
     return qc,sv_plus,sv_minus,p_plus,p_minus
 end # function x_measure
+
+function plot_bas4shots(event_table)
+    # plot the bar chart of the number of shots per basis/state.
+    # Author: Taha Selim
+    # Date: 2023-12-28
+    # the event_table has 4 columns
+    # the first column is the basis
+    # the second column is the statevector
+    # the third column is the probability
+    # the fourth column is the number of shots
+    # the number of shots is the number of times the state was measured
+    # read the dimensions of the Hilbert space
+    #n_dim = qc.n_dim
+    # add "|" and ">" to the basis of the event_table column 1
+    event_table[:,1] = "|" .* event_table[:,1] .* ">"
+    # plot the bar chart of the number of shots per basis/state
+    bar(title = "Measurements of the quantum states", 
+    xlabel = "States/basis", ylabel = "Shots", legend = :bottomright, 
+    event_table[:,1], event_table[:,4], label = "shots", 
+    color = :blue1, alpha = 0.9, bar_width = 0.5)
+end # function plot_bas4shots
 
 
 end # module
