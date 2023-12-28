@@ -1,6 +1,8 @@
 module measurements
 
 using LinearAlgebra
+using LaTeXStrings
+using Plots # or StatsPlots
 
 
 # import conventions
@@ -33,7 +35,7 @@ if conventions.verbose1
 end
 
 # export functions
-export z_measure, x_measure, peek_states, plot_bas4shots
+export z_measure, x_measure, peek_states, measure_state, plot_bas4shots
 
 function peek_states(qc)
     # Having a peek at the states of a quantum register in the computational basis
@@ -67,7 +69,7 @@ function peek_states(qc)
     q_table = q_table[q_ind[:,1],:]
     # return the table of the quantum register
     return q_table
-end # end measure_state
+end # end peek_states
 
 function z_measure(qc, qubit::Int; big_endian::Bool=true, show::Bool=true)
   # Measurements in the computational (z-)basis.
@@ -216,6 +218,82 @@ function x_measure(qc, qubit::Int; big_endian::Bool=true, show::Bool=true)
     # Return the statevectors after the measurements
     return qc,sv_plus,sv_minus,p_plus,p_minus
 end # function x_measure
+
+function measure_state(qc,shots)
+    ## Execute the simulator 
+    # Author: Taha Selim 
+    # Date: 2023-12-27
+    # get the qc structure, the statevectors, the basis,
+    # ... and the number of qubits
+    # the statevector is a complex vector of 2^n_qubits: state_vector
+    # the basis is a vector of 2^n_qubits: q_states
+    # the number of qubits is n_qubits
+    q_states, state_vector, q_bits = statevector(qc)
+    n_qubits = qc.n_qubits
+    n_dim = qc.n_dim
+    # probability density: prob, the square of the absolute value of the statevector
+    prob = abs.(state_vector).^2
+    # get the index of the state with the highest probability
+    ind_max = findmax(prob)[2]
+    # get the state with the highest probability
+    state_max = q_states[ind_max,:]
+    # get the statevector, the basis, and the prob in a q_table
+    q_table = Matrix(undef,qc.n_dim, 3)
+    q_table[:,1] = q_bits # the basis
+    q_table[:,2] = state_vector # the statevector
+    q_table[:,3] = prob # the probability
+    # sort the q_table by the probability
+    q_ind = sortperm(prob)
+    q_table = q_table[q_ind[:,1],:]
+    # distribute the probabilities over a line interval from 0 to 1
+    # The interval from 0 to 1 is divided into n_dim intervals
+    # The length of each interval is the probability of the state
+    # The interval is assigned to the state
+    # write a for loop that distributes the probabilities over the interval from 0 to 1
+    # the loop variable is i
+    # the loop starts at 1 and ends at n_dim
+    # Store the start and end of the interval in the prob_table
+    # the prob_table has 5 columns
+    prob_table = Matrix(undef,qc.n_dim, 5)
+    prob_table[:,1] = q_table[:,1] # the basis
+    prob_table[:,2] = q_table[:,2] # the statevector
+    prob_table[:,3] = q_table[:,3] # the probability
+    # the loop variable i is the index of the state
+    start_interval = 0
+    # Distribute the probabilities over the interval from 0 to 1
+    for i in 1:n_dim
+        # the length of the interval is the probability of the state
+        length_interval = prob[i]
+        # the end of the interval is the start of the interval plus the length of the interval
+        end_interval = start_interval + length_interval
+        # write the start and end of the interval into the q_table
+        prob_table[i,4] = start_interval
+        prob_table[i,5] = end_interval
+        # the start of the next interval is the end of the current interval
+        start_interval = end_interval  
+    end
+   # generate a vector of shots random numbers
+   r = rand(shots)
+   # locate each random number in the interval and store them in specific vectors 
+   # Check whether a given r random number is contained in an interval of the prob_table and assign true or false
+   # and store them in an array of booleans
+   # the array of booleans is called r_in_interval
+   state_count = zeros(Int64, n_dim)
+   for i_interval in 1:n_dim
+       interval = prob_table[i_interval,4:5]
+       event_count = filter(t -> interval[1] < t < interval[2], r)
+       state_count[i_interval] = length(event_count) 
+   end
+   # amend the q_table with the number of shots per state
+   event_table = Matrix(undef,qc.n_dim, 4)
+   event_table[:,1:3] = q_table[:,1:3]
+   event_table[:,4] = state_count
+   # sort the event_table by the number of shots
+   event_ind = sortperm(state_count)
+   event_table = event_table[event_ind[:,1],:]
+   plot_bas4shots(event_table)
+end # function measure_state
+
 
 function plot_bas4shots(event_table)
     # plot the bar chart of the number of shots per basis/state.
