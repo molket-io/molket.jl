@@ -219,7 +219,7 @@ function x_measure(qc, qubit::Int; big_endian::Bool=true, show::Bool=true)
     return qc,sv_plus,sv_minus,p_plus,p_minus
 end # function x_measure
 
-function measure_state(qc,shots)
+function measure_state(qc,shots;fig_format="png",save_fig=false)
     ## Execute the simulator 
     # Author: Taha Selim 
     # Date: 2023-12-27
@@ -291,11 +291,13 @@ function measure_state(qc,shots)
    # sort the event_table by the number of shots
    event_ind = sortperm(state_count)
    event_table = event_table[event_ind[:,1],:]
-   plot_bas4shots(event_table)
+   plot_bas4shots(event_table,qc;
+   fig_format=fig_format,save_fig=save_fig)
 end # function measure_state
 
 
-function plot_bas4shots(event_table)
+function plot_bas4shots(event_table,qc;
+    fig_format="png",save_fig=true)
     # plot the bar chart of the number of shots per basis/state.
     # Author: Taha Selim
     # Date: 2023-12-28
@@ -308,12 +310,41 @@ function plot_bas4shots(event_table)
     # read the dimensions of the Hilbert space
     #n_dim = qc.n_dim
     # add "|" and ">" to the basis of the event_table column 1
+    n_dim = qc.n_dim
+    # add "|" and ">" to the basis of the event_table column 1
     event_table[:,1] = "|" .* event_table[:,1] .* ">"
-    # plot the bar chart of the number of shots per basis/state
-    bar(title = "Measurements of the quantum states", 
-    xlabel = "States/basis", ylabel = "Shots", legend = :bottomright, 
-    event_table[:,1], event_table[:,4], label = "shots", 
-    color = :blue1, alpha = 0.9, bar_width = 0.5)
+    # the number of plots is the number of states divided by 8
+    n_states_default = 8 
+    n_plots = Int64(ceil(n_dim/8))
+    # the number of states in the last plot is the remainder of the division
+    n_states_last_plot = mod(n_dim,8)
+    
+    for iplot in 1:n_plots
+    # the number of states in the plot is by default 8
+        n_states_plot = 8
+        if iplot == n_plots && n_states_last_plot != 0
+            n_states_plot = n_states_last_plot
+        end
+        # the start of the states in the plot is the start of the states in the event_table
+        start_state = (iplot-1)*n_states_plot+1
+        # the end of the states in the plot is the start of the states in the event_table plus 8
+        end_state = start_state + n_states_plot - 1
+        # the states in the plot are the states in the event_table from start_state to end_state
+        states_plot = event_table[start_state:end_state,1]
+        # the shots in the plot are the shots in the event_table from start_state to end_state
+        shots_plot = event_table[start_state:end_state,4]
+        # plot the bar chart of the number of shots per basis/state
+        display(bar(states_plot,shots_plot, label="shots", 
+        xlabel="basis", ylabel="shots", 
+        title= "shots per basis: " * string(start_state) * " to " * string(end_state)))
+         # save the plot as a png file
+         #save_fig = true
+         #fig_format = "png" # default
+         if save_fig
+         figname = "shots_per_basis_state_" * string(iplot) * "." * fig_format
+          savefig(figname)
+         end
+    end
 end # function plot_bas4shots
 
 
