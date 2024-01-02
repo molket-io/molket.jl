@@ -160,13 +160,16 @@ function rotation_gate(theta::Float64;pauli_gate::String)
     # return: rotation gate
     # Define the rotation gate
     if pauli_gate == "x"
-        Rx = U_gate(theta,-pi/2,pi/2)
+        Rx = U_gate(theta=theta,phi=-pi/2,lambda=pi/2)
+#        Rx = U_gate(theta,-pi/2,pi/2)
         return Rx
     elseif pauli_gate == "y"
-        Ry = U_gate(theta,0.0,0.0)
+        Ry = U_gate(theta=theta)
+#        Ry = U_gate(theta,0.0,0.0)
         return Ry
     elseif pauli_gate == "z"
-        Rz = U_gate(0.0,0.0,theta)
+        Rz = U_gate(lambda=theta)
+#        Rz = U_gate(0.0,0.0,theta)
         return Rz
     else
         error("The pauli axis is not defined")
@@ -178,7 +181,8 @@ function Rx_gate(theta)
     # theta::Float64: angle of rotation around the x-axis
     # return: Rx gate
     # Define the Rx gate
-    Rx = U_gate(theta,-pi/2,pi/2)
+    Rx = U_gate(theta=theta,phi=-pi/2,lambda=pi/2)
+#    Rx = U_gate(theta=theta,-pi/2,pi/2)
     return Rx
 end # end Rx_gate
 
@@ -187,7 +191,8 @@ function Ry_gate(theta)
     # theta::Float64: angle of rotation around the y-axis
     # return: Ry gate
     # Define the Ry gate
-    Ry = U_gate(theta,0.0,0.0)
+    Ry = U_gate(theta=theta)
+#    Ry = U_gate(theta=theta,0.0,0.0)
     return Ry
 end # end Ry_gate
 
@@ -196,7 +201,9 @@ function Rz_gate(theta)
     # theta::Float64: angle of rotation around the z-axis
     # return: Rz gate
     # Define the Rz gate
-    Rz = U_gate(0.0,0.0,theta)
+    Rz = U_gate(lambda=theta)
+#   Rz = U_gate(0.0,0.0,lambda=theta)
+
     return Rz
 end # end Rz_gate
 
