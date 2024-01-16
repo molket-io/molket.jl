@@ -1,5 +1,5 @@
 # molket.jl
-© MolKet 2023, MIT License
+© MolKet 2024, MIT License
 
 © Taha Selim & Alain Chance
 
