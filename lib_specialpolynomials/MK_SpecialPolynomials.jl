@@ -9,7 +9,7 @@ module MK_SpecialPolynomials
 using SpecialFunctions
 
 
-export laguerre, glaguerre
+export laguerre, glaguerre, ghermite
 
 function glaguerre(n::Int64,alpha::Int64,x::Float64)
     # Generalized Gauss-Laguerre polynomials
@@ -43,9 +43,32 @@ end # function glaguerre
     
 function laguerre(n::Int64,x::Float64)
     # Gauss-Laguerre polynomials
+    # TSelim 2023
     L = glaguerre(n,0,x)
     return L
 end # function laguerre
 
+# implement Hermite polynomials
+function ghermite(n,x)
+# Gauss-Hermite polynomials
+# Inputs
+# n : degree
+# x : the point
+# Outputs
+# H_n(x)
+# Reference:
+# Abramowitz, M. and Stegun, I. A. (Eds.). "Orthogonal Polynomials." Ch. 22
+# in Handbook of Mathematical Functions
+# with Formulas, Graphs, and Mathematical Tables,
+# 9th printing. New York: Dover, pp. 771-802, 1972.
+# TSelim April 4th 2024
+    if n == 0
+        return 1
+    elseif n == 1
+        return 2*x
+    else
+        return 2*x*ghermite(n-1,x) - 2*(n-1)*ghermite(n-2,x)
+    end
+end # function ghermite
 
 end # module
