@@ -1,2 +1,3 @@
-# © Taha Selim and Alain Chancé 2023, MIT License.
-## Use this to print the authors in the start of the program.
+# © MolKet 2024, MIT License.
+# Authors: Taha Selim and Alain Chance.
+## Use this to print the authors and contributers in the start of the program.
