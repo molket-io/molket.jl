@@ -9,7 +9,7 @@ module MK_SpecialPolynomials
 using SpecialFunctions
 
 
-export laguerre, glaguerre, ghermite
+export laguerre, glaguerre, ghermite, gchebhermite
 
 function glaguerre(n::Int64,alpha::Int64,x::Float64)
     # Generalized Gauss-Laguerre polynomials
@@ -52,7 +52,7 @@ end # function laguerre
 function ghermite(n,x)
 # Gauss-Hermite polynomials
 # Inputs
-# n : degree
+# n : order
 # x : the point
 # Outputs
 # H_n(x)
@@ -62,13 +62,59 @@ function ghermite(n,x)
 # with Formulas, Graphs, and Mathematical Tables,
 # 9th printing. New York: Dover, pp. 771-802, 1972.
 # TSelim April 4th 2024
-    if n == 0
-        return 1
-    elseif n == 1
-        return 2*x
-    else
-        return 2*x*ghermite(n-1,x) - 2*(n-1)*ghermite(n-2,x)
+H = zeros(Float64,n+1)
+if n == 0
+    H[1] = 1
+    return H
+end
+if n == 1
+    H[1] = 1
+    H[2] = 2*x
+    return H
+end
+if n>1
+    H[1] = 1
+    H[2] = 2*x
+    for i in 3:n+1
+        H[i] = 2*x*H[i-1] - 2*(i-2)*H[i-2]
     end
+    return H
+end
 end # function ghermite
+
+# implement Chebyshev-Hermite polynomials
+function gchebhermite(n,x)
+# Chebyshev-Hermite polynomials
+# Inputs
+# n : order
+# x : the point
+# Outputs
+# T_n(x)
+# Reference:
+# Abramowitz, M. and Stegun, I. A. (Eds.). "Orthogonal Polynomials." Ch. 22
+# in Handbook of Mathematical Functions
+# with Formulas, Graphs, and Mathematical Tables,
+# 9th printing. New York: Dover, pp. 771-802, 1972.
+# TSelim April 4th 2024
+T = zeros(Float64,n+1)
+if n == 0
+    T[1] = 1
+    return T
+end
+if n == 1
+    T[1] = 1
+    T[2] = x
+    return T
+end
+if n>1
+    T[1] = 1
+    T[2] = x
+    for i in 3:n+1
+        T[i] = 2*x*T[i-1] - T[i-2]
+    end
+    return T
+end
+end # function gchebhermite
+
 
 end # module
