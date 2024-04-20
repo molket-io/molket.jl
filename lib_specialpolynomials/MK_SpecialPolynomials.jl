@@ -110,7 +110,7 @@ if n>1
     T[1] = 1
     T[2] = x
     for i in 3:n+1
-        T[i] = 2*x*T[i-1] - T[i-2]
+        T[i] = x*T[i-1] - (i-2)*T[i-2]
     end
     return T
 end
