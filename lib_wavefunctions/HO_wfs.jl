@@ -15,7 +15,31 @@ module_file(modu) = String(first(methods(getfield(modu, :eval))).file)
 include("../lib_SpecialPolynomials/MK_SpecialPolynomials.jl")
 using ..MK_SpecialPolynomials: laguerre, glaguerre, ghermite, gchebhermite
 
-
 using LinearAlgebra
+
+export HO_wfs1D
+
+function HO_wfs1D(n::Int64,x::Float64;omega::Float64=1.0,mu::Float64=1.0)
+    # Harmonic oscillator wave functions
+    # Inputs
+    # n    : degree
+    # x    : the point
+    # omega: frequency
+    # mu   : mass
+    # Outputs
+    # psi_n(x)
+    # Reference:
+    # https://en.wikipedia.org/wiki/Hermite_polynomials
+    # https://en.wikipedia.org/wiki/Harmonic_oscillator
+    # TSelim April 4th 2024
+
+    # Note: the wavefunction is scaled by default to 1.0 so that the 
+    # ... scaling factor alpha = sqrt(mu*omega) is not considered in the 
+    # ... default case.
+    psi = 0.0
+    #psi = (mu*omega/(pi))^(1/4) * 1/sqrt(2^n * factorial(n)) 
+    #* exp(-mu*omega*x^2/2) * ghermite(n,mu*omega*x^2)
+    return psi
+end # function HO_wfs1D
 
 end # module
