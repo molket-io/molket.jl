@@ -14,7 +14,7 @@ using LinearAlgebra
 #export a, adag, n, commutator
 export a_Op, adag_Op, n_Op
 
-function aOp(Nq::Int)
+function a_Op(Nq::Int)
     # Create annihilation operator
     # Inputs
     # Nq : number of qubits, or the number of modes
