@@ -16,7 +16,7 @@ include("conventions.jl")
 
 # import constants and unit conversions
 include("lib_constants/const_data.jl")
-using ..constants: cm1,NA,h_const
+using ..constants: cm1,NA,h_const, Ang, amu
 
 # import quantum gates
 include("quantum_gates.jl")
@@ -47,3 +47,7 @@ using ..MK_bosonicOp: a_Op, adag_Op, n_Op
 # Load the HamiltonianPrint
 include("lib_Hamiltonian/MK_HamiltonianPrint.jl") 
 using ..HamiltonianPrint: Hprint_fast, Evalues_print
+
+# Load the harmonic oscillator wave functions
+include("lib_wavefunctions/HO_wfs.jl") 
+using ..HO_wfs: HO_wfs1D

@@ -33,7 +33,7 @@ function Hprint_fast(H::Matrix{Float64})
     show(stdout, "text/plain", H)
 end # function Hprint_fast
     
-function Evalues_print(H, unit_cm1::Bool=true)
+function Evalues_print(H; unit_cm1::Bool=true)
     # Print the eigenvalues of the Hamiltonian matrix in a readable form
     # Inputs
     # H : Hamiltonian matrix
