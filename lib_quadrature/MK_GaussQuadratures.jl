@@ -72,6 +72,8 @@ function guass_laguerre_quadratures(n,alpha::Float64=0.0,adjusted::Bool=true)
     #
    #  See also: G_HERM for Gauss-Hermite
    #  https://keisan.casio.com/exec/system/1281279441
+   return 1
+end # function guass_laguerre_quadratures
 
 
 end # module
