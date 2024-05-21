@@ -33,7 +33,7 @@ function Hprint_fast(H::Matrix{Float64})
     show(stdout, "text/plain", H)
 end # function Hprint_fast
     
-function Evalues_print(H; unit_cm1::Bool=true)
+function Evalues_print(Ev; unit_cm1::Bool=true)
     # Print the eigenvalues of the Hamiltonian matrix in a readable form
     # Inputs
     # H : Hamiltonian matrix
@@ -41,7 +41,14 @@ function Evalues_print(H; unit_cm1::Bool=true)
     # print the eigenvalues of the Hamiltonian matrix
     # TSelim April 4th 2024
     println("Eigenvalues of the Hamiltonian matrix")
-    eigvals_H=eigvals(H)
+    eigvals_H=Ev
+    # make sure the eigenvalues are real and no imaginary part
+    #if imag(eigvals_H[1]) != 0
+    #    println("Eigenvalues have imaginary part")
+    #    println("Check the Hamiltonian matrix")
+    #end
+    # make the eigenvalues real
+    eigvals_H = real(eigvals_H)
     if unit_cm1
         show(stdout, "text/plain", eigvals_H/cm1)
     else
@@ -49,6 +56,23 @@ function Evalues_print(H; unit_cm1::Bool=true)
     end
 end # function Eigenprint_fast
 
-#function H_WFs1D
+function Evec_print(V,num)
+    # Print the eigenvectors of the Hamiltonian matrix in a readable form
+    # Inputs
+    # H : Hamiltonian matrix
+    # num: number of eigenvectors to print starting from the lowest
+    # Outputs
+    # print the eigenvectors of the Hamiltonian matrix
+    # TSelim April 30th 2024
+    println("Eigenvectors of the Hamiltonian matrix")
+    # print them in a readable form as vectors 
+    for i in 1:num
+        println("Eigenvector number: ", i)
+        show(stdout, "text/plain", V[:,i])
+    end
+    #show(stdout, "text/plain", V)
+end # function Evec_print
 
-end # module
+end # module HamiltonianPrint
+
+
