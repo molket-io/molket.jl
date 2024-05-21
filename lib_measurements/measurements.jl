@@ -289,7 +289,7 @@ function measure_state(qc,shots;fig_format="png",save_fig=false)
    event_table[:,1:3] = q_table[:,1:3]
    event_table[:,4] = state_count
    # sort the event_table by the number of shots
-   event_ind = sortperm(state_count)
+   event_ind = sortperm(state_count,rev=true)
    event_table = event_table[event_ind[:,1],:]
    plot_bas4shots(event_table,qc;
    fig_format=fig_format,save_fig=save_fig)
