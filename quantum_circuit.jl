@@ -4,6 +4,11 @@ module quantum_circuit
 ## For more information, please visit out website:
 # www.molket.io
 # This module contains the quantum circuit constructor
+# ==================================================================
+# Authors: Taha Selim 
+# Contributor: Alain Chancé
+# ==================================================================
+
 # Function module file looks up the location of a module from the method table
 module_file(modu) = String(first(methods(getfield(modu, :eval))).file)
 # Reference: 
@@ -280,15 +285,16 @@ Qgate = Qgate(phi=phi,lambda=lambda)
 return Qgate
 
 elseif theta != nothing
-Qgate = Qgate(theta=theta)
+#Qgate = Qgate(theta=theta)
+Qgate = Qgate(theta)
 return Qgate
 
 elseif phi != nothing
-Qgate = Qgate(phi=phi)
+Qgate = Qgate(phi)
 return Qgate
 
 elseif lambda != nothing
-Qgate = Qgate(lambda=lambda)
+Qgate = Qgate(lambda)
 return Qgate
 
 else
