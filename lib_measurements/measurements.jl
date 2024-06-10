@@ -35,7 +35,8 @@ if conventions.verbose1
 end
 
 # export functions
-export z_measure, x_measure, peek_states, measure_state, plot_bas4shots
+export z_measure, x_measure, peek_states, measure_state, plot_bas4shots, 
+measure_qubits
 
 function peek_states(qc)
     # Having a peek at the states of a quantum register in the computational basis
@@ -346,6 +347,39 @@ function plot_bas4shots(event_table,qc;
          end
     end
 end # function plot_bas4shots
+
+# partial measurement function 
+function measure_qubits(qc, qubits; big_endian::Bool=true, bas= "Zbas")
+    # Inputs:
+    # qc: quantum circuit
+    # qubits: qubits to measure
+    # big_endian: boolean to determine the endianess of the qubits
+    # bas: basis to measure the qubits, default is Z basis
+    # shots: number of shots to simulate the measurement, it is not defined at the moment.
+    # Outputs:
+    # qc: quantum circuit with measured qubits
+    # get the number of qubits to measure
+    n_qs = length(qubits)
+    # get the number of qubits in the quantum circuit
+    nqubits = qc.n_qubits
+    for iq in 1:n_qs
+        if bas == "Zbas"
+            qc,sv_0,sv_1,p0,p1 = z_measure(qc, qubits[iq],big_endian=big_endian,
+            show=false)
+        elseif bas == "Xbas"
+            qc,sv_0,sv_1,p0,p1 = x_measure(qc, qubits[iq],big_endian=big_endian,
+            show=false)
+        end
+        # update the state vector randomly based on the measurement outcomes
+        if rand() < p0
+            qc.state_vector = sv_0
+        else
+            qc.state_vector = sv_1
+        end
+    end
+    return qc
+end # end of the function measure_qubits        
+
 
 
 end # module
