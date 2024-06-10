@@ -36,7 +36,7 @@ end
 
 # export functions
 export z_measure, x_measure, peek_states, measure_state, plot_bas4shots, 
-measure_qubits
+measure_qubits, find_states
 
 function peek_states(qc)
     # Having a peek at the states of a quantum register in the computational basis
@@ -71,6 +71,33 @@ function peek_states(qc)
     # return the table of the quantum register
     return q_table
 end # end peek_states
+
+function find_states(qc, qubits)
+    # Inputs:
+    # qc: quantum circuit
+    # qubits: qubits to measure
+    # Outputs:
+    # states: states of the qubits in the computational basis
+    # get the number of qubits to measure
+    # Author: Taha Selim, June 10th, 2025
+    n_qs = length(qubits)
+    # get the number of qubits in the quantum circuit
+    nqubits = qc.n_qubits
+    # get the state vector
+    sv = qc.state_vector
+    # get the number of states
+    nstates = length(sv)
+    # get the number of states of the measured qubits
+    nstates_q = 2^n_qs
+    # get the number of states of the remaining qubits
+    nstates_r = nstates/nstates_q
+    # get the states of the measured qubits
+    states = zeros(Int,nstates_q)
+    for i in 1:nstates_q
+        states[i] = i-1
+    end
+    return states
+end # end of the function find_states
 
 function z_measure(qc, qubit::Int; big_endian::Bool=true, show::Bool=true)
   # Measurements in the computational (z-)basis.
@@ -359,6 +386,7 @@ function measure_qubits(qc, qubits; big_endian::Bool=true, bas= "Zbas")
     # Outputs:
     # qc: quantum circuit with measured qubits
     # get the number of qubits to measure
+    # Author: Taha Selim, June 10th, 2025
     n_qs = length(qubits)
     # get the number of qubits in the quantum circuit
     nqubits = qc.n_qubits
