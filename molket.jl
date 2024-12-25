@@ -7,8 +7,10 @@ using LinearAlgebra
 using SpecialFunctions
 using AssociatedLegendrePolynomials
 using LaTeXStrings
-using Quantikz
+#using Quantikz
 using SparseArrays # https://docs.julialang.org/en/v1/stdlib/SparseArrays/
+#reading shared libraries
+using Libdl
 
 # import conventions
 include("conventions.jl")
@@ -62,3 +64,7 @@ using ..MK_Heig: Heig, H_ho1D
 # Load the expressions of normal coordinates in terms of ladder operators
 include("lib_Hamiltonian/MK_Hqladder.jl")
 using ..MK_Hqladder: Qcan_p1, Qcan_p2, Qcan_p3, Qcan_p4, H_harm
+
+# load data handling of reading ascii files of different data types 
+include("lib_shelf/MKread_ascii_2Darrays.jl")
+using .MKread_ascii_2Darrays: read_ascii_with_strings, read_mixed_data
