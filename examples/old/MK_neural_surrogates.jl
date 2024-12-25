@@ -16,8 +16,32 @@ module MK_neural_surrogates
 #------------------------------------------------------------------------------------------------------------------------------
 export Param, run_surrogate
 
+# import constants and unit conversions
+include("../lib_constants/const_data.jl")
+using ..constants: au2cm1, NA, h_const, cm1, Ang, amu
+
 using Flux, Surrogates, JLD2, Plots
 
+#-------------------------------------------------------
+# Include SurrogatesFlux.jl from package SurrogatesFlux
+#-------------------------------------------------------
+try
+    using SurrogatesFlux
+catch e
+    println("\nMK_neural_surrogates.jl - Package SurrogatesFlux not found in current path")
+
+    if isfile("SurrogatesFlux.jl")
+        println("Including SurrogatesFlux.jl")
+        include("SurrogatesFlux.jl")
+        
+        import .SurrogatesFlux: NeuralSurrogate
+    else
+        println("File SurrogatesFlux.jl not found")
+    end
+
+    return
+end
+#
 #--------------------------------
 # Define parameter structure
 #--------------------------------
@@ -47,57 +71,21 @@ Base.@kwdef mutable struct Param
     num_new_samples::Int64 = 40000
     n_echos::Int64 = 40000
     n_iters::Int64 = 1
-    # delta = euclidean(model(x), y[1])
+    # delta = euclidean(neural(x), y[1])
     delta_target::Float64 = 0.01
     grad::Float64 = 0.1
     model_file_name::String = "model.jld2"
 end
+
+unit = 1/(Ang*sqrt(amu))
+#unit = 1
+mu = 1 # due to the assumption of dimensionless units
 
 #----------------------------------------------------------------------------------------
 # Ref. Distances.jl, A Julia package for evaluating distances (metrics) between vectors.
 # https://github.com/JuliaStats/Distances.jl
 #----------------------------------------------------------------------------------------
 using Distances: euclidean
-
-import Zygote
-#----------------------------------------------------------------
-# Define function train1
-# https://github.com/FluxML/Flux.jl/blob/master/src/train.jl
-#----------------------------------------------------------------
-function train1!(loss, model, data, opt; cb = nothing)
-  isnothing(cb) || error("""train! does not support callback functions.
-                            For more control use a loop with `gradient` and `update!`.""")
-  for (i,d) in enumerate(data)
-    d_splat = d isa Tuple ? d : (d,)
-
-    l, gs = Zygote.withgradient(m -> loss(m, d_splat...), model)
-
-    if !isfinite(l)
-      throw(DomainError(lazy"Loss is $l on data item $i, stopping training"))
-    end
-
-    opt, model = Optimisers.update!(opt, model, gs[1])
-
-    Base.haslength(data) ? i/length(data) : nothing
-  end
-end
-
-#----------------------------------------------------------------
-# Define mutable structure NeuralSurrogate
-# Source: Surrogates.jl/lib/SurrogatesFlux/src/SurrogatesFlux.jl 
-# abstract type AbstractSurrogate <: Function end
-#----------------------------------------------------------------
-mutable struct NeuralSurrogate{X, Y, M, L, O, P, N, A, U} <: AbstractSurrogate
-    x::X
-    y::Y
-    model::M
-    loss::L
-    opt::O
-    ps::P
-    n_echos::N
-    lb::A
-    ub::U
-end
 
 #--------------------------------------------------------------------------------------------------------------------
 # Define build_surrogate() which builds a neural model and a neural surrogate function for function f()
@@ -126,9 +114,6 @@ function build_surrogate(x, y; param::Param=param)
         println("\nBuilding a neural surrogate function that predicts the wavefunctions ") 
     end
 
-    X = vec.(collect.(x))
-    data = zip(X, y)
-
     MyModel() = Chain(
       Dense(1, 20, σ),
       Dense(20, 80, σ),
@@ -139,32 +124,27 @@ function build_surrogate(x, y; param::Param=param)
     
     for i in 1:n_iters
         try
-            opt = Descent(grad)
-            ps = Flux.trainable(model)
-            opt_state = Flux.setup(opt, model)
-            loss = (model, x, y) -> Flux.mse(model(x), y)
+            neural = NeuralSurrogate(x, y, lower_bound, upper_bound, model = model, loss = (x,y) -> Flux.mse(model(x), y), opt = Descent(grad), 
+                n_echos = n_echos)
 
-            for epoch in 1:n_echos
-                # Using explicit-style `train!(loss, model, data, opt_state)
-                #Flux.train!(loss, model, data, opt_state)
-                train1!(loss, model, data, opt_state)
-            end
-            
-            neural = NeuralSurrogate(x, y, model, loss, opt, ps, n_echos, lower_bound, upper_bound)
-
-            if size(model(x))[1] != size(y[1])[1]
+            if size(neural(x))[1] != size(y[1])[1]
                 println("build_surrogate - Inconsistent dimensions")
-                println("\nsize(model(x)): $size(model(x))") 
-                println("\nsize(y[1]) $size(y[1])")
+                println("\nsize(neural(x)): ", size(neural(x))) 
+                println("\nsize(y[1]) ", size(y[1]))
             else
-                delta = euclidean(model(x), y[1])
-                println("build_surrogate - delta = euclidean(model(x), y[1]): $delta")
+                delta = euclidean(neural(x), y[1])
+                println("build_surrogate - delta = euclidean(neural(x), y[1]): ", delta)
             end
             
             return true, MyModel(), model, neural
-        
+            
         catch e
             n_echos -= 1
+            
+            if verbose1
+                println("\nbuild_surrogate - n_echos: ", n_echos) 
+            end
+            
             if n_echos == 0
                 break
             end
@@ -197,8 +177,7 @@ function neural_optimize(x, y, MyModel, model, model_file_name, neural; param::P
     # Flux Saving and Loading Models, https://fluxml.ai/Flux.jl/stable/saving/#Saving-and-Loading-Models
     #-----------------------------------------------------------------------------------------------------
     if verbose1
-        println("\nSaving neural model state in file: $model_file_name")
-        println(" ")
+        println("\nSaving neural model state in file: ", model_file_name)
     end
     
     model_state = Flux.state(model)
@@ -207,22 +186,22 @@ function neural_optimize(x, y, MyModel, model, model_file_name, neural; param::P
     x_a = x
     y_a = y
 
-    neural_x_a = model(x_a)
+    neural_x_a = neural(x_a)
     
     delta = euclidean(neural_x_a, y_a[1])
 
     if delta < delta_target
         if verbose1
-            println("No optimization needed since delta: $delta is less than target: $delta_target")
+            println("No optimization needed since delta: ", delta, " is less than target: ", delta_target)
         end
-        return neural, model
+        return neural
     end
     
     delta_ = delta
 
     for i in 1:n_iters
         if verbose1
-            println("\niteration: $i  delta: $delta_")
+            println("\niteration: ", i, " delta: ", delta_)
         end
     
         try
@@ -234,7 +213,7 @@ function neural_optimize(x, y, MyModel, model, model_file_name, neural; param::P
             end
         end
         
-        neural_x_a = model(x_a)
+        neural_x_a = neural(x_a)
         delta_ = euclidean(neural_x_a, y_a[1])
         
         if delta_ < delta
@@ -246,18 +225,18 @@ function neural_optimize(x, y, MyModel, model, model_file_name, neural; param::P
             
             if delta < delta_target
                 if verbose1
-                    println("Neural surrogate function optimized delta: $delta_ is less than target: $delta_target")
+                    println("Neural surrogate function optimized delta: ", delta_, " is less than target: ", delta_target)
                 end
                 break
             else
                 if verbose1
-                    println("Neural surrogate function optimized delta: $delta_,  delta target: $delta_target")
+                    println("Neural surrogate function optimized delta: ", delta_, " delta target: ", delta_target)
                 end
             end
             
         else
             if verbose1
-                println("Exiting optimization delta: $delta_, delta target: $delta_target")
+                println("Exiting optimization delta: ", delta_, " delta target: ", delta_target)
             end
             break
         end
@@ -272,14 +251,10 @@ function neural_optimize(x, y, MyModel, model, model_file_name, neural; param::P
     #-----------------------------------------------
     # Update neural surrogate with best model state
     #-----------------------------------------------
-    neural = NeuralSurrogate(x, y, model, (model, x, y) -> Flux.mse(model(x), y), Descent(grad), Flux.trainable(model), n_echos, lower_bound, upper_bound)
+    neural = NeuralSurrogate(x, y, lower_bound, upper_bound, model = model, loss = (x,y) -> Flux.mse(model(x), y), 
+        opt = Descent(grad), n_echos = n_echos)
 
-    if verbose1
-        println("\nmodel(x_a): ", model(x_a), " f(x_a): ", y_a, " delta: ", delta, " delta target: ", delta_target)
-        println(trace_f, "\nmodel(x_a): ", model(x_a), " f(x_a): ", y_a, " delta: ", delta, " delta target: ", delta_target)
-    end
-
-    return neural, model
+    return neural
 end
 
 #------------------------------------------------------------------------------------------------------------------------
@@ -294,8 +269,8 @@ function neural_surrogate(x, y; param::Param=param)
     ok, MyModel(), model, neural = build_surrogate(x, y; param=param)
 
     if ok
-        neural, model = neural_optimize(x, y, MyModel, model, model_file_name, neural; param=param)
-        return ok, model
+        neural = neural_optimize(x, y, MyModel, model, model_file_name, neural; param=param)
+        return ok, neural
     else
         return ok, nothing
     end
@@ -304,7 +279,7 @@ end
 #--------------------------------------------------------------------------------------------------------------
 # Define print_surrogate() that prints the wavefunctions computed by the neural surrogate and for the training 
 #--------------------------------------------------------------------------------------------------------------
-function print_surrogate(model, x, y; param::Param=param)
+function print_surrogate(neural, x, y; param::Param=param)
 
     # Retrieve parameters from param data structure
     verbose1 = param.verbose1
@@ -314,10 +289,10 @@ function print_surrogate(model, x, y; param::Param=param)
     qnum = param.qnum
     n = param.n
 
-    neural_x = model(x)
+    neural_x = neural(x)
     delta = euclidean(neural_x, y[1])
 
-    println("\nneural_surrogate - delta = euclidean(model(x), y[1]): ", delta)
+    println("\nneural_surrogate - delta = euclidean(neural(x), y[1]): ", delta)
 
     if verbose1
         println("\nneural(x): ")
@@ -367,12 +342,12 @@ function run_surrogate(; param::Param=param, npoints=175, qnum=[0, 1, 2, 3], n=0
     end
     
     param.model_file_name = string("model_", omega, "_", param.n, ".jld2")
-    ok, model = neural_surrogate(x, y; param=param)
+    ok, neural = neural_surrogate(x, y; param=param)
     if ok
-        A, Y = print_surrogate(model, x, y; param=param)
+        A, Y = print_surrogate(neural, x, y; param=param)
     end
     
-    return model, x, y
+    return neural, x, y
 end
 
 end # module MK_neural_surrogates
