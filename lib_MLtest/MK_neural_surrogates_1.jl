@@ -4,19 +4,23 @@ module MK_neural_surrogates
 # © MolKet 2024, MIT License
 # www.molket.io
 #
-# Author: Alain Chancé June 2024
+# Author: Alain Chancé December 2024
 #
-# Build neural surrogate function that predicts the wavefunction for a given omega and save neural model state
+# Create and train a Radial Basis Function (RBF) neural network surrogate function for the 1D plot of a potential.
 #
 # Flux: The Julia Machine Learning Library, https://fluxml.ai/Flux.jl/stable/
 # Flux, GPU Support: https://fluxml.ai/Flux.jl/stable/gpu/
 #
 # Surrogates.jl: Surrogate models and optimization for scientific machine learning, https://docs.sciml.ai/Surrogates/stable/
 # Neural network tutorial, https://docs.sciml.ai/Surrogates/stable/neural/
+#
+# Radial Surrogates
+# https://docs.sciml.ai/Surrogates/stable/radials/
+#
 #------------------------------------------------------------------------------------------------------------------------------
 export Param, run_surrogate
 
-using Flux, Surrogates, JLD2, Plots
+using Flux, Surrogates, JLD2, Plots, Random
 
 #--------------------------------
 # Define parameter structure
@@ -29,26 +33,61 @@ Base.@kwdef mutable struct Param
     verbose1::Bool = false
     theta0::Float64 = 90.0
     R::Vector{Float64} = collect(4.0:0.1:6.0)
+    Qgrid = R
     Q::Float64 = 0.0
     theta::Vector{Float64}= collect(0.0:10.0:180.0)
     phi::Float64 = 0.0
     n_samples::Int64 = 50
-    npoints::Int64 = n_samples
+    npoints::Int64 = length(R)
     #
     # Neural surrogate parameters follow
     #
     theta_rad::Vector{Float64} = theta*pi/180
     phi_rad::Float64 = phi*pi/180
-    lower_bound::Float64 = min(-pi, minimum(theta_rad))
-    upper_bound::Float64 = max(pi, maximum(theta_rad))
+    lower_bound::Float64 = minimum(R)
+    upper_bound::Float64 = maximum(R)
     maxiters::Int64 = 100
-    num_new_samples::Int64 = length(R)
-    n_echos::Int64 = length(R)
-    n_iters::Int64 = 400
+    num_new_samples::Int64 = 1000
+    n_echos::Int64 = 50
+    n_iters::Int64 = 30
     # delta = euclidean(model(x), y[1])
     delta_target::Float64 = 0.01
     grad::Float64 = 0.1
     model_file_name::String = "model1.jld2"
+end
+
+# Define the RBF Layer
+struct RBFLayer
+    centers::Array{Float32, 2}  # Centers of RBF units
+    σ::Float32                  # Spread (standard deviation)
+end
+
+# Define the complete RBF network
+struct RBFNet
+    rbf_layer::RBFLayer
+    weights::Dense
+end
+
+# Define Radial Basis Function (RBF)
+function rbf(x, c, σ)
+    return exp.(-sum((x .- c).^2) / (2σ^2))
+end
+
+function (l::RBFLayer)(x)
+    h = [rbf(x, l.centers[:, i], l.σ) for i in 1:size(l.centers, 2)]
+    return h
+end
+
+function (net::RBFNet)(x)
+    # Apply the RBF layer and then the Dense layer
+    rbf_output = net.rbf_layer(x)
+    return net.weights(rbf_output)
+end
+
+# Loss function
+function loss_fn(model, x, y)
+    y_pred = model(x)
+    return Flux.mse(y_pred, y)
 end
 
 #----------------------------------------------------------------------------------------
@@ -97,8 +136,8 @@ mutable struct NeuralSurrogate{X, Y, M, L, O, P, N, A, U} <: AbstractSurrogate
     ub::U
 end
 
-#--------------------------------------------------------------------------------------------------------------------
-# Define build_surrogate() which builds a neural model and a neural surrogate function for function f()
+#------------------------------------------------------------------------------------------------------------------------
+# Define build_surrogate() which Trains a Radial Basis Function (RBF) neural network surrogate function for function f()
 #
 # Building a surrogate, https://docs.sciml.ai/Surrogates/stable/neural/#Building-a-surrogate
 # Module SurrogatesFlux, https://github.com/SciML/Surrogates.jl/blob/master/lib/SurrogatesFlux/src/SurrogatesFlux.jl
@@ -108,7 +147,7 @@ end
 #
 # Flux.Losses.mse returns the loss corresponding to mean square error
 # https://fluxml.ai/Flux.jl/stable/models/losses/#Flux.Losses.mse
-#---------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------------
 function build_surrogate(x, y; param::Param=param)
 
     # Retrieve parameters from param data structure
@@ -123,79 +162,80 @@ function build_surrogate(x, y; param::Param=param)
     grad = param.grad
     delta_target = param.delta_target
     model_file_name = param.model_file_name
-    
-    X = vec.(collect.(x))
-    data = zip(X, y)
+
+    ok = true
 
     if verbose1
         println("\nBuilding a neural surrogate function that predicts the function f()") 
         
-        println("\nbuild_surrogate - X: ")
-        println(X)
+        println("\nbuild_surrogate - x: ")
+        println(x)
         
         print("\nbuild_surrogate - length(y) :", length(y))
         println("\nbuild_surrogate - y: ")
         println(y)
     end
 
-    k = length(y)
+    # Reshape x for compatibility with struct RBFLayer
+    x_data::Matrix{Float32} = reshape(x, 1, :)
+    y_data::Matrix{Float32} = reshape(y, 1, :)
 
-    MyModel() = Chain(
-      Dense(1, 10, σ),
-      Dense(10, 5, σ),
-      Dense(5, k, σ)
-    )
-    
-    model = MyModel()
-    delta = 1E+03
-    ok = true
-    
+    data = zip(x_data, y_data)
+
+    # Initialize RBF Layer
+    n_centers = length(y)  # Same as the number of data points
+    centers = x_data  # Place centers at the data points
+    σ = 0.5           # Initial spread (can be tuned)
+    rbf_layer = RBFLayer(centers, σ)
+
+    # Initialize Dense Layer (weights)
+    weights = Dense(n_centers, 1)
+
+    # Combine into RBFNet
+    model = RBFNet(rbf_layer, weights)
+
+    y_pred::Vector{Float32} = zeros(Float32, length(y))
+    delta = 1000.0
+
     for i in 1:n_iters
-        try
-            opt = Descent(grad)
-            ps = Flux.trainable(model)
-            opt_state = Flux.setup(opt, model)
-            loss = (model, x, y) -> Flux.mse(model(x), y)
+        opt = Descent(grad)  # Gradient descent optimizer
+        ps = Flux.trainable(model)
+        opt_state = Flux.setup(opt, model)
 
-            for epoch in 1:n_echos
-                # Using explicit-style `train!(loss, model, data, opt_state)
-                #Flux.train!(loss, model, data, opt_state)
-                train1!(loss, model, data, opt_state)
-            end
-            
-            neural = NeuralSurrogate(x, y, model, loss, opt, ps, n_echos, lower_bound, upper_bound)
-            delta_ = euclidean(model(x), y)
-
-            if verbose1
-                println("build_surrogate - delta = euclidean(model(x), y): $delta_")
-            end
-
-            if delta_ < delta
-                delta = delta_
-            
-                # Update model state
-                model_state = Flux.state(model)
-                jldsave(model_file_name; model_state)
-            end
-
-            if delta_ < delta_target
-                if verbose1
-                    println("Neural surrogate function optimized delta: $delta_ is less than target: $delta_target")
-                end
-                break
-            end
-        
-        catch e
-            n_echos -= 1
-            if n_echos == 0
-                ok = false
-                break
+        # Training loop
+        for epoch in 1:n_echos
+            # Compute gradients
+            train1!(loss_fn, model, data, opt_state)
+    
+            # Print loss occasionally
+            if epoch % 100 == 0
+                println("Epoch $epoch: Loss = $(loss_fn(model, x_data, y_data))")
             end
         end
-    end
+        
+        i = 1
+        for xi in x_data
+            #println("xi: $xi, model(xi)[1]): ", model(xi)[1])
+            y_pred[i] = model(xi)[1]
+            i += 1
+        end
+    
+        delta_ = euclidean(y_pred, y)
 
-    if !ok
-        return ok, MyModel(), model, nothing
+        if delta_ < delta
+            delta = delta_
+            
+            # Update model state
+            model_state = Flux.state(model)
+            jldsave(model_file_name; model_state)
+        end
+
+        if delta_ < delta_target
+            if verbose1
+                println("Neural surrogate function optimized delta: $delta_ is less than target: $delta_target")
+            end
+            break
+        end
     end
 
     #-----------------------
@@ -204,20 +244,28 @@ function build_surrogate(x, y; param::Param=param)
     model_state = JLD2.load(model_file_name, "model_state")
     Flux.loadmodel!(model, model_state)
 
-    #-----------------------------------------------
-    # Update neural surrogate with best model state
-    #-----------------------------------------------
-    neural = NeuralSurrogate(x, y, model, (model, x, y) -> Flux.mse(model(x), y), Descent(grad), Flux.trainable(model), n_echos, lower_bound, upper_bound)
-
-    if verbose1
-        neural_x = model(x)
-        println("\nmodel(x): $neural_x")
-        println("\nf(x): $y")
-        println("\ndelta: $delta")
-        println("\ndelta target: $delta_target")
+    #------------------------------------
+    # Compute delta for best model state
+    #------------------------------------
+    i = 1
+    for xi in x_data
+        y_pred[i] = model(xi)[1]
+        i += 1
     end
     
-    return ok, MyModel(), model, nothing
+    delta = euclidean(y_pred, y)
+    
+    if verbose1
+        println("\nx_data: ")
+        println(x_data)
+
+        println("\ny_pred: ")
+        println(y_pred)
+        
+        println("build_surrogate Radial Basis Function (RBF) neural network - delta = euclidean(y_pred, y): $delta")
+    end
+    
+    return ok, model
 end
 
 #--------------------------------------------------------------------------------------------------------------
@@ -230,26 +278,30 @@ function print_surrogate(model, x, y; param::Param=param)
     verbose1 = param.verbose1
     theta0 = param.theta0
     R = param.R
+    Qgrid = param.Qgrid
     Q = param.Q
     theta = param.theta
     phi = param.phi
     n_samples = param.n_samples
     npoints = param.npoints
-    
-    delta = euclidean(model(x), y)
 
-    println("\nneural_surrogate - delta = euclidean(model(x), y[1]): ", delta)
-
-    xlims = (4.0, 6.0)
+    y_pred::Vector{Float32} = zeros(Float32, length(y))
+    i = 1
+    for xi in x
+        y_pred[i] = model(xi)[1]
+        i += 1
+    end
+        
+    delta = euclidean(y_pred, y)
     
-    Qgrid = range(4,stop=6,length=length(R))
+    println("build_surrogate - delta = euclidean(y_pred, y): $delta")
     
     println("")
     println("\nPlot Vpot*2.0E-05")
-    display(plot(Qgrid,y))
+    display(plot(Qgrid, y))
     
-    println("\nPlot model(R)*2.0E-05")
-    display(plot(Qgrid,model(x)[:]))
+    println("\nPlot RBF model(R)*2.0E-05")
+    display(plot(Qgrid, y_pred))
     
 end
 
@@ -270,12 +322,12 @@ function run_surrogate(; param::Param=param, n_samples=50, theta0=90.0, R=collec
     param.n_samples = n_samples
     param.grad = grad
     
-    x = [theta0]
+    x = R
     y = f(theta0; param=param)
         
     param.model_file_name = string("model1.jld2")
     
-    ok, MyModel(), model, neural = build_surrogate(x, y; param=param)
+    ok, model = build_surrogate(x, y; param=param)
     if ok
         print_surrogate(model, x, y; param=param)
     end
