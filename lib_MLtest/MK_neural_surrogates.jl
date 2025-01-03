@@ -16,7 +16,7 @@ module MK_neural_surrogates
 #------------------------------------------------------------------------------------------------------------------------------
 export Param, run_surrogate
 
-using Flux, Surrogates, JLD2, Plots
+using Flux, Surrogates, JLD2, Plots, Printf
 
 #--------------------------------
 # Define parameter structure
@@ -46,10 +46,10 @@ Base.@kwdef mutable struct Param
     maxiters::Int64 = 10
     num_new_samples::Int64 = 40000
     n_echos::Int64 = 40000
-    n_iters::Int64 = 2
+    n_iters::Int64 = 10
     # delta = euclidean(model(x), y[1])
     #delta_target::Float64 = 0.01
-    delta_target::Float64 = 1e-4
+    delta_target::Float64 = 1e-5
     grad::Float64 = 0.1
     model_file_name::String = "model.jld2"
 end
@@ -147,6 +147,7 @@ function build_surrogate(x, y; param::Param=param)
     
     model = MyModel()
     delta = 1E+03
+    loss = 1E-03
     ok = true
     
     for i in 1:n_iters
@@ -154,19 +155,38 @@ function build_surrogate(x, y; param::Param=param)
             opt = Descent(grad)
             ps = Flux.trainable(model)
             opt_state = Flux.setup(opt, model)
-            loss = (model, x, y) -> Flux.mse(model(x), y)
+            loss_fn = (model, x, y) -> Flux.mse(model(x), y)
 
+            if verbose1
+                println("\niteration: $i")
+            end
+
+            # Training loop
             for epoch in 1:n_echos
                 # Using explicit-style `train!(loss, model, data, opt_state)
                 #Flux.train!(loss, model, data, opt_state)
-                train1!(loss, model, data, opt_state)
+                train1!(loss_fn, model, data, opt_state)
+
+                loss_ = Flux.mse(model(x), y[1])
+
+                if abs(loss_ - loss)/loss < 1E-07
+                    break
+                else
+                    loss = loss_
+                end
+
+                # Print loss occasionally
+                if verbose1 && epoch % 1000 == 0
+                    s = @sprintf("%.3e", loss)
+                    println("Epoch $epoch: Loss = $s")
+                end
             end
             
-            neural = NeuralSurrogate(x, y, model, loss, opt, ps, n_echos, lower_bound, upper_bound)
             delta_ = euclidean(model(x), y[1])
 
             if verbose1
-                println("build_surrogate - delta = euclidean(model(x), y[1]): $delta_")
+                s = @sprintf("%.3e", delta_)
+                println("\nbuild_surrogate - delta = euclidean(model(x), y[1]): $s")
             end
 
            if delta_ < delta
@@ -179,7 +199,8 @@ function build_surrogate(x, y; param::Param=param)
 
             if delta_ < delta_target
                 if verbose1
-                    println("Neural surrogate function optimized delta: $delta_ is less than target: $delta_target")
+                    s = @sprintf("%.3e", delta_)
+                    println("\nbuild surrogate function optimized delta: $s is less than target: $delta_target")
                 end
                 break
             end
@@ -203,17 +224,18 @@ function build_surrogate(x, y; param::Param=param)
     model_state = JLD2.load(model_file_name, "model_state")
     Flux.loadmodel!(model, model_state)
 
-    #-----------------------------------------------
-    # Update neural surrogate with best model state
-    #-----------------------------------------------
-    neural = NeuralSurrogate(x, y, model, (model, x, y) -> Flux.mse(model(x), y), Descent(grad), Flux.trainable(model), n_echos, lower_bound, upper_bound)
+    #------------------------------------
+    # Compute delta for best model state
+    #------------------------------------
+    y_pred = model(x)
+    delta = euclidean(y_pred, y[1])
 
+    s = @sprintf("%.3e", delta)
+    println("\ndelta = euclidean(model(x), y[1]): $s")
+    println("\ndelta target: $delta_target")
+    
     if verbose1
-        neural_x = model(x)
-        println("\nmodel(x): $neural_x")
-        println("\nf(x): $y")
-        println("\ndelta: $delta")
-        println("\ndelta target: $delta_target")
+        println("\ny_pred: $y_pred")
     end
     
     return ok, MyModel(), model, nothing
@@ -235,16 +257,8 @@ function print_surrogate(model, x, y; param::Param=param)
     neural_x = model(x)
     delta = euclidean(neural_x, y[1])
 
-    println("\nneural_surrogate - delta = euclidean(model(x), y[1]): ", delta)
-
-    if verbose1
-        println("\nneural(x): ")
-        show(stdout, "text/plain", neural_x)
-        
-        println("")
-        println("\ny: ")
-        show(stdout, "text/plain", y[1])
-    end
+    s = @sprintf("%.3e", delta)
+    println("\nneural_surrogate - delta = euclidean(model(x), y[1]): $s")
 
     println("")
     println("\nPlot with omega = ", omega, ", n = ", n, ", y[1]")

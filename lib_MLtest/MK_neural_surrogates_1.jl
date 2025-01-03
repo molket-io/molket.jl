@@ -26,7 +26,6 @@ using Flux, Surrogates, JLD2, Plots, Random, Printf
 # Define parameter structure
 #--------------------------------
 Base.@kwdef mutable struct Param
-    f::Function = x -> x
     potential::Function = x -> x
     #
     # f parameters follow
@@ -51,8 +50,8 @@ Base.@kwdef mutable struct Param
     
     maxiters::Int64 = 100
     num_new_samples::Int64 = 1000
-    n_echos::Int64 = 90
-    n_iters::Int64 = 50
+    n_echos::Int64 = 5000
+    n_iters::Int64 = 1
     # delta = euclidean(model(x), y[1])
     delta_target::Float64 = 1E-5
     grad::Float64 = 0.1
@@ -127,6 +126,10 @@ end
 # Define build_RBF_1D() which creates and trains a Radial Basis Function (RBF) neural network surrogate function 
 # for the 1D plot of a potential.
 #
+# The Radial Basis Function is defined as follows:
+# $$\operatorname{RBF}(x, c, \sigma)=\exp \left(-\frac{\|x-c\|^2}{2 \sigma^2}\right)$$
+# where $c$ is the center and $\sigma$ is the spread.
+#
 # Building a surrogate, https://docs.sciml.ai/Surrogates/stable/neural/#Building-a-surrogate
 # Module SurrogatesFlux, https://github.com/SciML/Surrogates.jl/blob/master/lib/SurrogatesFlux/src/SurrogatesFlux.jl
 #
@@ -191,28 +194,41 @@ function build_RBF_1D(x, y; param::Param=param)
 
     y_pred::Vector{Float32} = zeros(Float32, length(y))
     delta = 1000.0
+    loss = 1E-03
 
     for i in 1:n_iters
         opt = Descent(grad)  # Gradient descent optimizer
         ps = Flux.trainable(model)
         opt_state = Flux.setup(opt, model)
 
+        if verbose1
+            println("\niteration: $i")
+        end
+
         # Training loop
         for epoch in 1:n_echos
             # Compute gradients
             train1!(loss_fn, model, data, opt_state)
-    
-            # Print loss occasionally
-            if epoch % 100 == 0
-                println("Epoch $epoch: Loss = $(loss_fn(model, x_data, y_data))")
+
+            i = 1
+            for xi in x_data
+                y_pred[i] = model(xi)[1]
+                i += 1
             end
-        end
-        
-        i = 1
-        for xi in x_data
-            #println("xi: $xi, model(xi)[1]): ", model(xi)[1])
-            y_pred[i] = model(xi)[1]
-            i += 1
+                
+            loss_ = Flux.mse(y_pred, y)
+
+            if abs(loss_ - loss)/loss < 1E-07
+                break
+            else
+                loss = loss_
+            end
+            
+            # Print loss occasionally
+            if verbose1 && epoch % 100 == 0
+                s = @sprintf("%.3e", loss)
+                println("Epoch $epoch: Loss = $s")
+            end
         end
     
         delta_ = euclidean(y_pred, y)
@@ -295,7 +311,6 @@ end
 # multiquadricRadial(c = 1.0) = RadialFunction(1, z -> sqrt((c * norm(z))^2 + 1))
 #------------------------------------------------------------------------------------------------------------------------
 function build_RBF_2D(x, y; param::Param=param)
-    f = param.f
     verbose1 = param.verbose1
     potential = param.potential
     R = param.R
