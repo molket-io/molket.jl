@@ -41,16 +41,16 @@ Base.@kwdef mutable struct Param
     #
     # Neural surrogate parameters follow
     #
-    lower_bound::Union{Int64,Float64} = 800.0
-    upper_bound::Union{Int64,Float64} = 1600.0
     maxiters::Int64 = 10
     num_new_samples::Int64 = 40000
-    n_echos::Int64 = 40000
+    n_echos::Int64 = 50000
     n_iters::Int64 = 10
     # delta = euclidean(model(x), y[1])
     #delta_target::Float64 = 0.01
     delta_target::Float64 = 1e-5
     grad::Float64 = 0.1
+    show::Bool = true
+    save_png::Bool = true
     model_file_name::String = "model.jld2"
 end
 
@@ -119,22 +119,19 @@ function build_surrogate(x, y; param::Param=param)
     npoints = param.npoints
     n_echos = param.n_echos
     n_iters = param.n_iters
-    lower_bound = param.lower_bound
-    upper_bound = param.upper_bound
     grad = param.grad
     delta_target = param.delta_target
     model_file_name = param.model_file_name
 
-    X = vec.(collect.(x))
-    data = zip(X, y)
+    x_data = vec.(collect.(x))
+    data = zip(x_data, y)
 
     if verbose1
         println("\nBuilding a neural surrogate function that predicts the function f()") 
         
-        println("\nbuild_surrogate - X: ")
-        println(X)
+        println("\nbuild_surrogate - x: ")
+        println(x)
         
-        print("\nbuild_surrogate -length(y) :", length(y))
         println("\nbuild_surrogate - y: ")
         println(y)
     end
@@ -156,10 +153,6 @@ function build_surrogate(x, y; param::Param=param)
             ps = Flux.trainable(model)
             opt_state = Flux.setup(opt, model)
             loss_fn = (model, x, y) -> Flux.mse(model(x), y)
-
-            if verbose1
-                println("\niteration: $i")
-            end
 
             # Training loop
             for epoch in 1:n_echos
@@ -184,9 +177,13 @@ function build_surrogate(x, y; param::Param=param)
             
             delta_ = euclidean(model(x), y[1])
 
-            if verbose1
+            if abs(delta_ - delta)/delta < 1E-07
+                break
+            end
+
+            if verbose1 && i % 10 == 0
                 s = @sprintf("%.3e", delta_)
-                println("\nbuild_surrogate - delta = euclidean(model(x), y[1]): $s")
+                println("Iteration: $i, delta = euclidean(model(x), y): $s")
             end
 
            if delta_ < delta
@@ -229,12 +226,11 @@ function build_surrogate(x, y; param::Param=param)
     #------------------------------------
     y_pred = model(x)
     delta = euclidean(y_pred, y[1])
-
-    s = @sprintf("%.3e", delta)
-    println("\ndelta = euclidean(model(x), y[1]): $s")
-    println("\ndelta target: $delta_target")
     
     if verbose1
+        s = @sprintf("%.3e", delta)
+        println("\ndelta = euclidean(model(x), y): $s")
+        println("\ndelta target: $delta_target")
         println("\ny_pred: $y_pred")
     end
     
@@ -253,19 +249,27 @@ function print_surrogate(model, x, y; param::Param=param)
     npoints = param.npoints
     qnum = param.qnum
     n = param.n
+    model_file_name = param.model_file_name
+    show = param.show
+    save_png = param.save_png
 
     neural_x = model(x)
     delta = euclidean(neural_x, y[1])
 
     s = @sprintf("%.3e", delta)
-    println("\nneural_surrogate - delta = euclidean(model(x), y[1]): $s")
+    println("\ndelta = euclidean(model(x), y): $s")
 
-    println("")
-    println("\nPlot with omega = ", omega, ", n = ", n, ", y[1]")
-    display(plot(Qgrid,y[1][:,1]))
-    
-    println("\nPlot with omega = ", omega, ", n = ", n, ", neural surrogate")
-    display(plot(Qgrid,neural_x[:,1]))
+# https://docs.juliaplots.org/latest/tutorial/#Basic-Plotting:-Line-Plots
+    p = plot(Qgrid, [y[1][:,1] neural_x[:,1]], title="Plot with omega = $omega, n = $n", label=["Wavefunction" "Neural surrogate"])
+    if show
+        println("")
+        display(p)
+    end
+
+    if save_png
+        plot_png = replace(model_file_name, "jld2" => "png")
+        savefig(p, plot_png)
+    end
         
     return neural_x, y[1]
 end
@@ -273,7 +277,7 @@ end
 #---------------------------------------------------------------------------------
 # Define run_surrogate() that trains a model and plots wavefunction and surrogate
 #---------------------------------------------------------------------------------
-function run_surrogate(; param::Param=param, npoints=175, qnum=[0, 1, 2, 3], n=0, omega=1200, shift=0.7, grad=0.1, verbose1=false)
+function run_surrogate(; param::Param=param, npoints=175, qnum=[0, 1, 2, 3], n=0, omega=1200, shift=0.7, grad=0.1, show=true, save_png=true, verbose1=false)
 
     f = param.f
     
@@ -284,9 +288,9 @@ function run_surrogate(; param::Param=param, npoints=175, qnum=[0, 1, 2, 3], n=0
     param.n = n
     param.omega = omega
     param.shift = shift
-    param.lower_bound = min(param.lower_bound, omega)
-    param.upper_bound = max(param.upper_bound, omega)
     param.grad = grad
+    param.show = show
+    param.save_png = save_png
 
     x = [omega]
     y = []

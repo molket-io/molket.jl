@@ -50,12 +50,13 @@ Base.@kwdef mutable struct Param
     
     maxiters::Int64 = 100
     num_new_samples::Int64 = 1000
-    n_echos::Int64 = 5000
+    n_echos::Int64 = 10000
     n_iters::Int64 = 1
     # delta = euclidean(model(x), y[1])
     delta_target::Float64 = 1E-5
     grad::Float64 = 0.1
     show::Bool = true
+    save_png::Bool = true
     model_file_name::String = "model1.jld2"
 end
 
@@ -155,6 +156,7 @@ function build_RBF_1D(x, y; param::Param=param)
     model_file_name = param.model_file_name
     show = param.show
     scale = param.scale
+    save_png = param.save_png
 
     l_R = length(R)
     l_theta = length(theta)
@@ -200,11 +202,7 @@ function build_RBF_1D(x, y; param::Param=param)
         opt = Descent(grad)  # Gradient descent optimizer
         ps = Flux.trainable(model)
         opt_state = Flux.setup(opt, model)
-
-        if verbose1
-            println("\niteration: $i")
-        end
-
+    
         # Training loop
         for epoch in 1:n_echos
             # Compute gradients
@@ -232,6 +230,15 @@ function build_RBF_1D(x, y; param::Param=param)
         end
     
         delta_ = euclidean(y_pred, y)
+
+        if abs(delta_ - delta)/delta < 1E-07
+            break
+        end
+
+        if verbose1 && i % 10 == 0
+            s = @sprintf("%.3e", delta_)
+            println("Iteration: $i, delta = euclidean(model(x), y): $s")
+        end
 
         if delta_ < delta
             delta = delta_
@@ -277,13 +284,21 @@ function build_RBF_1D(x, y; param::Param=param)
         println(y_pred)
     end
 
+    #-------------------------------------------------------------------------
+    # Plot Potential and RBF surrogate functions
+    # https://docs.juliaplots.org/latest/tutorial/#Basic-Plotting:-Line-Plots
+    #-------------------------------------------------------------------------
+    p = plot(R, [y y_pred], title="Plot Vpot, scale = $scale", label=["Potential" "RBF surrogate"])
+
     if show
         println("")
-        println("\nPlot Vpot, scale = $scale")
-        display(plot(R, y))
+        display(p)
+    end
     
-        println("\nPlot RBF model(R)")
-        display(plot(R, y_pred))
+    if save_png
+        s = model_file_name
+        plot_png = replace(s, "jld2" => "png")
+        savefig(p, plot_png)
     end
     
     return ok, model
@@ -320,9 +335,10 @@ function build_RBF_2D(x, y; param::Param=param)
     phi_rad = param.phi_rad
     phi_rad0 = param.phi_rad0
     n_samples = param.n_samples
+    model_file_name = param.model_file_name
     scale = 2.5E-05
     show = param.show
-    model_file_name = param.model_file_name
+    save_png = param.save_png
 
     lower_bound = param.lower_bound
     upper_bound = param.upper_bound
@@ -336,6 +352,9 @@ function build_RBF_2D(x, y; param::Param=param)
 
     ok = true
     model = nothing
+    title_p1 = ""
+    title_p2 = ""
+    title_p3 = ""
 
     if l_theta == 1 && l_phi == 1
         println("Either theta, or phi but not both must be of length 1")
@@ -361,39 +380,28 @@ function build_RBF_2D(x, y; param::Param=param)
 
         if verbose1
             println("\nBuilding a Radial Basis Function (RBF) neural network surrogate function for the 2D plot of a potential")
-
-            #println("\nzs")
-            #println(zs)
-            
-            #println("\nmodel:")
-            #println(model)
-
-            #println("\nmodel.coeff:")
-            #println(model.coeff)
-            
-            #println("\nzpred:")
-            #println(zpred)
         end
     
         delta = euclidean(zpred, zs)
         s = @sprintf("%.3e", delta)
         println("\nbuild_RBF_2D - delta = euclidean(zpred, zs): $s")
 
-        if show
-            p1 = surface(xlims, ylims, (x1,x2) -> func_Rtheta((x1,x2)))
+        title_p1 = string("\nSurface plot Potential(R, theta_rad), scale = ", scale)
+        title_p2 = "Contour plot Potential(R, theta_rad)"
+        title_p3 = string("Surface plot RBF(R, theta_rad), scale = ", scale)
+
+        if show || save_png
+            s1 = surface(xlims, ylims, (x1,x2) -> func_Rtheta((x1,x2)))
             scatter!(xs, ys, zs)
+            p1 = plot(s1, title=title_p1)
 
-            display(plot(p1, title="\nSurface plot Potential(R, theta_rad), scale = $scale"))
-
-            p2 = contour(xlims, ylims, (x1,x2) -> func_Rtheta((x1,x2)))
+            c2 = contour(xlims, ylims, (x1,x2) -> func_Rtheta((x1,x2)))
             scatter!(xs, ys)
+            p2 = plot(c2, title=title_p2)
 
-            display(plot(p2, title="Contour plot Potential(R, theta_rad)"))
-
-            p3 = surface(xlims, ylims, (x1,x2) -> model((x1,x2)))
+            s3 = surface(xlims, ylims, (x1,x2) -> func_Rtheta((x1,x2)))
             scatter!(xs, ys, zs)
-
-            display(plot(p3, title="Surface plot RBF surrogate(R, theta_rad), scale = $scale"))
+            p3 = plot(s3, title=title_p3)
         end
     
     elseif l_theta == 1
@@ -416,43 +424,50 @@ function build_RBF_2D(x, y; param::Param=param)
 
         if verbose1
             println("\nBuilding a Radial Basis Function (RBF) neural network surrogate function for the 2D plot of a potential")
-
-            #println("\nzs")
-            #println(zs)
-            
-            #println("\nmodel:")
-            #println(model)
-
-            #println("\nmodel.coeff:")
-            #println(model.coeff)
-            
-            #println("\nzpred:")
-            #println(zpred)
         end
     
         delta = euclidean(zpred, zs)
         s = @sprintf("%.3e", delta )
         println("\nbuild_RBF_2D - delta = euclidean(zpred, zs): $s")
 
-        if show
-            p1 = surface(xlims, ylims, (x1,x2) -> func_Rphi((x1,x2)))
+        title_p1 = string("\nSurface plot Potential(R, phi_rad), scale = ", scale)
+        title_p2 = "Contour plot Potential(R, phi_rad)"
+        title_p3 = string("Surface plot RBF(R, phi_rad), scale = ", scale)
+
+        if show || save_png
+            s1 = surface(xlims, ylims, (x1,x2) -> func_Rphi((x1,x2)))
             scatter!(xs, ys, zs)
+            p1 = plot(s1, title=title_p1)
 
-            display(plot(p1, title="\nSurface plot Potential(R, phi_rad), scale = $scale"))
-
-            p2 = contour(xlims, ylims, (x1,x2) -> func_Rphi((x1,x2)))
+            c2 = contour(xlims, ylims, (x1,x2) -> func_Rphi((x1,x2)))
             scatter!(xs, ys)
+            p2 = plot(c2, title=title_p2)
 
-            display(plot(p2, title="Contour plot Potential(R, phi_rad)"))
-
-            p3 = surface(xlims, ylims, (x1,x2) -> model((x1,x2)))
+            s3 = surface(xlims, ylims, (x1,x2) -> func_Rphi((x1,x2)))
             scatter!(xs, ys, zs)
-
-            display(plot(p3, title="Surface plot RBF surrogate(R, phi_rad), scale = $scale"))
+            p3 = plot(s3, title=title_p3)
         end
 
     else
         println("Either theta, or phi or both must be of length 1")
+        return false, nothing
+    end
+
+    if show
+        display(p1)
+        display(p2)
+        display(p3)
+    end
+        
+    if save_png
+        p1_png = replace(model_file_name, ".jld2" => "_p1.png")
+        savefig(p1, p1_png)
+
+        p2_png = replace(model_file_name, ".jld2" => "_p2.png")
+        savefig(p2, p2_png)
+
+        p3_png = replace(model_file_name, ".jld2" => "_p3.png")
+        savefig(p3, p3_png)
     end
 
     # Update model state
