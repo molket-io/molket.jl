@@ -31,7 +31,7 @@ Base.@kwdef mutable struct Param
     npoints::Int64 = 175
     Qgrid = range(-5,stop=5,length=npoints)
     n::Int64 = 0
-    omega::Float64 = 1200
+    omega::Union{Vector{Float64},Int64,Float64} = 1200.0
     g1_constant::Float64 = -0.0030609
     t111_constant::Float64 = 0.30667
     u1111_constant::Float64 = 0.31927
@@ -52,6 +52,11 @@ Base.@kwdef mutable struct Param
     show::Bool = true
     save_png::Bool = true
     model_file_name::String = "model.jld2"
+    model = Chain(
+      Dense(1, 20, σ),
+      Dense(20, 80, σ),
+      Dense(80, npoints, σ)
+    )
 end
 
 #----------------------------------------------------------------------------------------
@@ -116,15 +121,19 @@ function build_surrogate(x, y; param::Param=param)
 
     # Retrieve parameters from param data structure
     verbose1 = param.verbose1
+    omega = param.omega
     npoints = param.npoints
     n_echos = param.n_echos
     n_iters = param.n_iters
     grad = param.grad
     delta_target = param.delta_target
     model_file_name = param.model_file_name
+    model = param.model
 
     x_data = vec.(collect.(x))
-    data = zip(x_data, y)
+    y_data = vec.(collect.(y))
+    
+    data = zip(x_data, y_data)
 
     if verbose1
         println("\nBuilding a neural surrogate function that predicts the function f()") 
@@ -135,14 +144,7 @@ function build_surrogate(x, y; param::Param=param)
         println("\nbuild_surrogate - y: ")
         println(y)
     end
-
-    MyModel() = Chain(
-      Dense(1, 20, σ),
-      Dense(20, 80, σ),
-      Dense(80, npoints, σ)
-    )
     
-    model = MyModel()
     delta = 1E+03
     loss = 1E-03
     ok = true
@@ -212,14 +214,18 @@ function build_surrogate(x, y; param::Param=param)
     end
 
     if !ok
-        return ok, MyModel(), model, nothing
+        return ok, model, nothing
     end
     
     #-----------------------
     # Load best model state 
     #-----------------------
-    model_state = JLD2.load(model_file_name, "model_state")
-    Flux.loadmodel!(model, model_state)
+    if isfile(model_file_name)
+        model_state = JLD2.load(model_file_name, "model_state")
+        Flux.loadmodel!(model, model_state)
+    else
+        println("\nFile not found: $model_file_name")
+    end
 
     #------------------------------------
     # Compute delta for best model state
@@ -234,7 +240,7 @@ function build_surrogate(x, y; param::Param=param)
         println("\ny_pred: $y_pred")
     end
     
-    return ok, MyModel(), model, nothing
+    return ok
 end
 
 #--------------------------------------------------------------------------------------------------------------
@@ -259,8 +265,11 @@ function print_surrogate(model, x, y; param::Param=param)
     s = @sprintf("%.3e", delta)
     println("\ndelta = euclidean(model(x), y): $s")
 
+# Plot wavefunction and surrogate
 # https://docs.juliaplots.org/latest/tutorial/#Basic-Plotting:-Line-Plots
-    p = plot(Qgrid, [y[1][:,1] neural_x[:,1]], title="Plot with omega = $omega, n = $n", label=["Wavefunction" "Neural surrogate"])
+
+    p = plot(Qgrid, [y[1][:,1] neural_x[:,1]], title="omega: $omega, n: $n", label=["Wavefunction" "Neural surrogate"])
+    
     if show
         println("")
         display(p)
@@ -277,13 +286,14 @@ end
 #---------------------------------------------------------------------------------
 # Define run_surrogate() that trains a model and plots wavefunction and surrogate
 #---------------------------------------------------------------------------------
-function run_surrogate(; param::Param=param, npoints=175, qnum=[0, 1, 2, 3], n=0, omega=1200, shift=0.7, grad=0.1, show=true, save_png=true, verbose1=false)
+function run_surrogate(; param::Param=param, npoints=175, qnum=[0, 1, 2, 3], n=0, omega=1200.0, shift=0.7, grad=0.1, show::Bool=true, save_png::Bool=true, build::Bool=true, verbose1::Bool=false)
 
     f = param.f
     
     # Set up parameter data structure
     param.verbose1 = verbose1
     param.npoints = npoints
+    param.Qgrid = range(-5,stop=5,length=npoints)
     param.qnum = qnum
     param.n = n
     param.omega = omega
@@ -292,19 +302,47 @@ function run_surrogate(; param::Param=param, npoints=175, qnum=[0, 1, 2, 3], n=0
     param.show = show
     param.save_png = save_png
 
-    x = [omega]
+    model = param.model
+
+    ok = true
+
+    x = [n]
     y = []
-    for omega1 in x
+
+    for omega1 in omega
         push!(y, f(omega1))
     end
 
     if n == 0
         shift = sum(y[1])/sizeof(y[1])[1]
     end
-    
-    param.model_file_name = string("model_", omega, "_", param.n, ".jld2")
-    
-    ok, MyModel(), model, neural = build_surrogate(x, y; param=param)
+
+    if build
+        #-------------------------------------------------
+        # Train model and save best model state in a file
+        #-------------------------------------------------
+        if length(omega) == 1
+            param.model_file_name = string("model_", omega, "_", param.n, ".jld2")
+        else
+            param.model_file_name = string("model_", Int(omega[1]), "_to_", Int(omega[end]), "_", param.n, ".jld2")
+        end
+        
+        ok = build_surrogate(x, y; param=param)
+    else
+        #----------------------------
+        # Load model state from file
+        #----------------------------
+        param.model_file_name = string("model_400_to_1800_", param.n, ".jld2")
+        
+        if isfile(param.model_file_name)
+            model_state = JLD2.load(param.model_file_name, "model_state")
+            Flux.loadmodel!(model, model_state)
+        else
+            ok = false
+            println("\nFile not found: $model_file_name")
+        end
+    end
+
     if ok
         A, Y = print_surrogate(model, x, y; param=param)
     end
