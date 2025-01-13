@@ -214,7 +214,7 @@ function build_surrogate(x, y; param::Param=param)
     end
 
     if !ok
-        return ok, model, nothing
+        return ok
     end
     
     #-----------------------
@@ -313,10 +313,6 @@ function run_surrogate(; param::Param=param, npoints=175, qnum=[0, 1, 2, 3], n=0
         push!(y, f(omega1))
     end
 
-    if n == 0
-        shift = sum(y[1])/sizeof(y[1])[1]
-    end
-
     if build
         #-------------------------------------------------
         # Train model and save best model state in a file
@@ -329,17 +325,25 @@ function run_surrogate(; param::Param=param, npoints=175, qnum=[0, 1, 2, 3], n=0
         
         ok = build_surrogate(x, y; param=param)
     else
-        #----------------------------
-        # Load model state from file
-        #----------------------------
-        param.model_file_name = string("model_400_to_1800_", param.n, ".jld2")
+        #------------------------------------------------------
+        # Load trained model state model_400_to_1800 from file
+        #------------------------------------------------------
+        model_file_name = string("model_400_to_1800_", param.n, ".jld2")
         
-        if isfile(param.model_file_name)
-            model_state = JLD2.load(param.model_file_name, "model_state")
+        if isfile(model_file_name)
+            model_state = JLD2.load(model_file_name, "model_state")
             Flux.loadmodel!(model, model_state)
+
+            # Set-up model file name for test run
+            if length(omega) == 1
+                param.model_file_name = string("model_", omega, "_", param.n, ".jld2")
+            else
+                param.model_file_name = string("model_", Int(omega[1]), "_to_", Int(omega[end]), "_", param.n, ".jld2")
+            end
         else
             ok = false
             println("\nFile not found: $model_file_name")
+            return ok, ""
         end
     end
 
@@ -347,7 +351,7 @@ function run_surrogate(; param::Param=param, npoints=175, qnum=[0, 1, 2, 3], n=0
         A, Y = print_surrogate(model, x, y; param=param)
     end
     
-    return model, x, y
+    return ok, param.model_file_name
 end
 
 end # module MK_neural_surrogates

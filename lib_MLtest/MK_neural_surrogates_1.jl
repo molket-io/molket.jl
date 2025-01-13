@@ -50,8 +50,8 @@ Base.@kwdef mutable struct Param
     
     maxiters::Int64 = 100
     num_new_samples::Int64 = 1000
-    n_echos::Int64 = 10000
-    n_iters::Int64 = 1
+    n_echos::Int64 = 20000
+    n_iters::Int64 = 5
     # delta = euclidean(model(x), y[1])
     delta_target::Float64 = 1E-5
     grad::Float64 = 0.1
@@ -223,7 +223,7 @@ function build_RBF_1D(x, y; param::Param=param)
             end
             
             # Print loss occasionally
-            if verbose1 && epoch % 100 == 0
+            if verbose1 && epoch % 1000 == 0
                 s = @sprintf("%.3e", loss)
                 println("Epoch $epoch: Loss = $s")
             end
@@ -235,9 +235,9 @@ function build_RBF_1D(x, y; param::Param=param)
             break
         end
 
-        if verbose1 && i % 10 == 0
+        if verbose1 && i % 5 == 0
             s = @sprintf("%.3e", delta_)
-            println("Iteration: $i, delta = euclidean(model(x), y): $s")
+            println("\nIteration: $i, delta = euclidean(model(x), y): $s")
         end
 
         if delta_ < delta
@@ -260,8 +260,12 @@ function build_RBF_1D(x, y; param::Param=param)
     #-----------------------
     # Load best model state 
     #-----------------------
-    model_state = JLD2.load(model_file_name, "model_state")
-    Flux.loadmodel!(model, model_state)
+    if isfile(model_file_name)
+        model_state = JLD2.load(model_file_name, "model_state")
+        Flux.loadmodel!(model, model_state)
+    else
+        println("\nFile not found: $model_file_name")
+    end
 
     #------------------------------------
     # Compute delta for best model state
@@ -330,18 +334,18 @@ function build_RBF_2D(x, y; param::Param=param)
     potential = param.potential
     R = param.R
     Q = param.Q
+    
     theta_rad = param.theta_rad
     theta_rad0 = param.theta_rad0
+    
     phi_rad = param.phi_rad
     phi_rad0 = param.phi_rad0
+    
     n_samples = param.n_samples
     model_file_name = param.model_file_name
-    scale = 2.5E-05
+    scale = 2.8E-05
     show = param.show
     save_png = param.save_png
-
-    lower_bound = param.lower_bound
-    upper_bound = param.upper_bound
 
     l_R = length(R)
     l_theta = length(theta_rad)
@@ -363,11 +367,10 @@ function build_RBF_2D(x, y; param::Param=param)
     elseif l_phi == 1
         func_Rtheta = R_theta -> potential(R_theta[1], Q, R_theta[2], phi_rad)*scale
 
-        lower_bound = [minimum(R), minimum(theta_rad)]
-        upper_bound = [maximum(R), maximum(theta_rad)]
+        lower_bound = [minimum(R), 0.0]
+        upper_bound = [maximum(R), pi/2.0]
 
         xys = sample(n_samples, lower_bound, upper_bound, SobolSample())
-        #println(xys)
 
         xs = [xy[1] for xy in xys]
         ys = [xy[2] for xy in xys]
@@ -407,11 +410,10 @@ function build_RBF_2D(x, y; param::Param=param)
     elseif l_theta == 1
         func_Rphi = R_phi -> potential(R_phi[1], Q, theta_rad, R_phi[2])*scale
 
-        lower_bound = [minimum(R), minimum(phi_rad)]
-        upper_bound = [maximum(R), maximum(phi_rad)]
+        lower_bound = [minimum(R), 0.0]
+        upper_bound = [maximum(R), pi]
 
         xys = sample(n_samples, lower_bound, upper_bound, SobolSample())
-        #println(xys)
         
         xs = [xy[1] for xy in xys]
         ys = [xy[2] for xy in xys]
@@ -489,25 +491,95 @@ end
 # Flux.Losses.mse returns the loss corresponding to mean square error
 # https://fluxml.ai/Flux.jl/stable/models/losses/#Flux.Losses.mse
 #-----------------------------------------------------------------------------------------------------------------------------
-function build_surrogate(x, y; param::Param=param)
+function build_surrogate(; param::Param=param)
+
+    # Retrieve potential function from param structure
+    potential = param.potential
 
     # Retrieve parameters from param data structure
     verbose1 = param.verbose1
+    
     R::Vector{Float64} = param.R
+    Q::Float64 = param.Q
+
     theta::Vector{Float64} = param.theta
+    theta_rad = (pi/180.0)*theta
+    param.theta_rad = theta_rad
+    param.theta_rad0 = minimum(param.theta_rad)
+    theta_rad0 = param.theta_rad0
+    
+    if theta_rad0 < 0
+        theta_rad0 = -theta_rad0
+    end
+    if theta_rad0 > pi/2.0
+        theta_rad0 = theta_rad0 - pi/2
+    end
+
     phi::Vector{Float64} = param.phi
+    phi_rad = (pi/180.0)*param.phi
+    param.phi_rad = phi_rad
+    param.phi_rad0 = minimum(param.phi_rad)
+    phi_rad0 = param.phi_rad0 
 
     l_R = length(R)
-    l_theta = length(theta)
-    l_phi = length(phi)
+    l_theta = length(param.theta)
+    l_phi = length(param.phi)
 
     ok = true
-    model = nothing
+    model = nothing 
 
     if l_theta == 1 && l_phi == 1
-        ok, model = build_RBF_1D(x, y; param=param)
+        x = R
+        param.lower_bound = minimum(R)
+        param.upper_bound = maximum(R)
         
-    elseif l_phi == 1 || l_theta == 1
+        y_R::Vector{Float64} = zeros(Float64, length(R))
+        for i in 1:l_R
+            y_R[i] = potential(R[i], Q, theta_rad0, phi_rad0)
+        end
+
+        scale = 2.5E-05
+        if theta_rad0 < pi/4.0
+            scale = 2.5E-05
+        elseif abs(theta_rad0 - pi/4.0) < 0.25
+            scale = 1.0E-04
+        elseif abs(theta_rad0 - pi/3.0) < 0.25
+            scale = 2.0E-04
+        elseif abs(theta_rad0 - pi/2.0) < 0.25
+            scale = 1.0E-03
+        else
+            scale = 2.5E-05
+        end
+
+        param.scale = scale
+        y = y_R*param.scale
+        
+        param.model_file_name = string("model_theta_", theta[1], "_phi_", phi[1], ".jld2")
+        
+        ok, model = build_RBF_1D(x, y; param=param)
+
+    elseif l_phi == 1
+        x = [[r,th] for r in R, th in theta_rad]
+        
+        func_Rtheta = r_th -> potential(r_th[1], Q, r_th[2], phi_rad0)
+
+        param.scale = 1.0E-05
+        y = func_Rtheta.(x)*param.scale
+
+        param.model_file_name = string("model_theta_", Int(theta[1]), "_to_", Int(theta[end]), "_phi_", phi[1], ".jld2")
+        
+        ok, model = build_RBF_2D(x, y; param=param)
+
+    elseif l_theta == 1
+        x = [[r,ph] for r in R, ph in phi_rad]
+        
+        func_Rphi = r_ph -> potential(r_ph[1], Q, theta_rad0, r_ph[2])
+
+        param.scale = 1.0E-05
+        y = func_Rphi.(x)*param.scale
+
+        param.model_file_name = string("model_phi_", Int(phi[1]), "_to_", Int(phi[end]), "_theta_", theta[1], ".jld2")
+
         ok, model = build_RBF_2D(x, y; param=param)
         
     else
@@ -520,95 +592,24 @@ end
 #---------------------------------------------------------------------------------
 # Define run_surrogate() that trains a model and plots wavefunction and surrogate
 #---------------------------------------------------------------------------------
-function run_surrogate(; param::Param=param, n_samples=50, R=collect(4.0:0.1:6.0), Q=0.0, theta=[0.0], phi=[0.0], grad=0.1, show=true, 
-        model_file_name::String="model1.jld2", verbose1=false)
-
-    # Retrieve potential function from param structure
-    potential = param.potential
+function run_surrogate(; param::Param=param, n_samples::Int64=50, R=collect(4.0:0.1:6.0), Q=0.0, theta=[0.0], phi=[0.0], 
+        grad=0.1, show::Bool=true, build::Bool=true, verbose1::Bool=false)
     
     # Set up parameter data structure
     param.verbose1 = verbose1
+    param.n_samples = n_samples
     param.R = R
     param.Q = Q
-    
     param.theta = theta
-    theta_rad = theta*pi/180
-    param.theta_rad = theta_rad
-    param.theta_rad0 = minimum(param.theta_rad)
-    theta_rad0 = param.theta_rad0
-    
     param.phi = phi
-    phi_rad = phi*pi/180
-    param.phi_rad = phi_rad
-    param.phi_rad0 = minimum(param.phi_rad)
-    phi_rad0 = param.phi_rad0 
-    
-    param.n_samples = n_samples
     param.grad = grad
+    param.show = show
 
-    l_R = length(R)
-    l_theta = length(theta)
-    l_phi = length(phi)
-
-    # Set lower_bound, upper_bound and scale
-    scale = 1.0E-05
-
-    if l_theta == 1 && l_phi == 1
-        x = R
-        param.lower_bound = minimum(R)
-        param.upper_bound = maximum(R)
-        
-        y_R::Vector{Float64} = zeros(Float64, length(R))
-        for i in 1:l_R
-            y_R[i] = potential(R[i], Q, theta_rad0, phi_rad0)
-        end
-        
-        if theta_rad0 < pi/4.0
-            scale = 2.5E-05
-        elseif abs(theta_rad0 - pi/4.0) < 0.1
-            scale = 8.0E-05
-        else
-            scale = 1.0E-03
-        end
-
-        y = y_R*scale
-    
-    elseif l_phi == 1
-        x = [[r,th] for r in R, th in theta_rad]
-        param.lower_bound = [minimum(R), minimum(theta_rad)]
-        param.upper_bound = [maximum(R), maximum(theta_rad)]
-        
-        func_Rtheta = r_th -> potential(r_th[1], Q, r_th[2], phi_rad0)
-        
-        scale = 1.0E-05
-        y = func_Rtheta.(x)*scale
-   
-    elseif l_theta == 1
-        x = [[r,ph] for r in R, ph in phi_rad]
-        param.lower_bound = [minimum(R), minimum(phi_rad)]
-        param.upper_bound = [maximum(R), maximum(phi_rad)]
-        
-        func_Rphi = r_ph -> potential(r_ph[1], Q, theta_rad0, r_ph[2])
-
-        scale = 1.0E-05
-        y = func_Rphi.(x)*scale
-
-    else
-        println("Either theta, or phi or both must be of length 1")
-        return nothing, nothing, nothing
+    if build
+        ok, model = build_surrogate(; param=param)
     end
-
-    param.scale = scale
-
-    if model_file_name == ""
-        model_file_name = "model1.jld2"
-    end
-        
-    param.model_file_name = model_file_name
     
-    ok, model = build_surrogate(x, y; param=param)
-    
-    return model, x, y
+    return ok, param.model_file_name
 end
 
 end # module MK_neural_surrogates
