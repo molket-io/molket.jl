@@ -50,14 +50,16 @@ Base.@kwdef mutable struct Param
     
     maxiters::Int64 = 100
     num_new_samples::Int64 = 1000
-    n_echos::Int64 = 20000
-    n_iters::Int64 = 5
+    n_echos::Int64 = 40000
+    n_iters::Int64 = 2
     # delta = euclidean(model(x), y[1])
     delta_target::Float64 = 1E-5
     grad::Float64 = 0.1
     show::Bool = true
     save_png::Bool = true
     model_file_name::String = "model1.jld2"
+    model = nothing
+    build::Bool = true
 end
 
 # Define the RBF Layer
@@ -193,7 +195,7 @@ function build_RBF_1D(x, y; param::Param=param)
 
     # Combine into RBFNet
     model = RBFNet(rbf_layer, weights)
-
+    
     y_pred::Vector{Float32} = zeros(Float32, length(y))
     delta = 1000.0
     loss = 1E-03
@@ -304,6 +306,9 @@ function build_RBF_1D(x, y; param::Param=param)
         plot_png = replace(s, "jld2" => "png")
         savefig(p, plot_png)
     end
+
+    # Save model in param structure
+    param.model = model
     
     return ok, model
 end
@@ -329,23 +334,29 @@ end
 # cubicRadial() = RadialFunction(1, z -> norm(z)^3)
 # multiquadricRadial(c = 1.0) = RadialFunction(1, z -> sqrt((c * norm(z))^2 + 1))
 #------------------------------------------------------------------------------------------------------------------------
-function build_RBF_2D(x, y; param::Param=param)
+function build_RBF_2D(; param::Param=param)
+    
+    # Retrieve parameters from param data structure
     verbose1 = param.verbose1
     potential = param.potential
     R = param.R
     Q = param.Q
-    
+
+    theta = param.theta
     theta_rad = param.theta_rad
     theta_rad0 = param.theta_rad0
-    
+
+    phi = param.phi
     phi_rad = param.phi_rad
     phi_rad0 = param.phi_rad0
     
     n_samples = param.n_samples
-    model_file_name = param.model_file_name
-    scale = 2.8E-05
+    param.scale = 2.8E-05
+    scale = param.scale
     show = param.show
     save_png = param.save_png
+    build = param.build
+    model = param.model
 
     l_R = length(R)
     l_theta = length(theta_rad)
@@ -355,16 +366,20 @@ function build_RBF_2D(x, y; param::Param=param)
     ys::Vector{Float64} = zeros(Float64,n_samples)
 
     ok = true
-    model = nothing
+    
     title_p1 = ""
     title_p2 = ""
     title_p3 = ""
+
+    model_file_name = ""
 
     if l_theta == 1 && l_phi == 1
         println("Either theta, or phi but not both must be of length 1")
         return ok, nothing
 
     elseif l_phi == 1
+        model_file_name = string("model_theta_", Int(theta[1]), "_to_", Int(theta[end]), "_phi_", phi[1], ".jld2")
+        
         func_Rtheta = R_theta -> potential(R_theta[1], Q, R_theta[2], phi_rad)*scale
 
         lower_bound = [minimum(R), 0.0]
@@ -378,12 +393,23 @@ function build_RBF_2D(x, y; param::Param=param)
 
         xlims, ylims = minimum(R):maximum(R), minimum(theta_rad):maximum(theta_rad)
 
-        model = RadialBasis(xys, zs, lower_bound, upper_bound)
-        zpred = model.(xys)
-
-        if verbose1
-            println("\nBuilding a Radial Basis Function (RBF) neural network surrogate function for the 2D plot of a potential")
+        if build
+            #-----------------------------------------------------------------------
+            # Build a Radial Basis Function (RBF) neural network surrogate function
+            #-----------------------------------------------------------------------
+            if verbose1
+                println("\nBuilding a Radial Basis Function (RBF) neural network surrogate function for the 2D plot of a potential")
+            end
+            model = RadialBasis(xys, zs, lower_bound, upper_bound)
+            param.model = model
+       else
+            #----------------------------------------
+            # Load trained RBF model state from file
+            #----------------------------------------
+            ok = load_surrogate(; param=param)
         end
+        
+        zpred = model.(xys)
     
         delta = euclidean(zpred, zs)
         s = @sprintf("%.3e", delta)
@@ -403,11 +429,13 @@ function build_RBF_2D(x, y; param::Param=param)
             p2 = plot(c2, title=title_p2)
 
             s3 = surface(xlims, ylims, (x1,x2) -> func_Rtheta((x1,x2)))
-            scatter!(xs, ys, zs)
+            scatter!(xs, ys, zpred)
             p3 = plot(s3, title=title_p3)
         end
     
     elseif l_theta == 1
+        model_file_name = string("model_phi_", Int(phi[1]), "_to_", Int(phi[end]), "_theta_", theta[1], ".jld2")
+        
         func_Rphi = R_phi -> potential(R_phi[1], Q, theta_rad, R_phi[2])*scale
 
         lower_bound = [minimum(R), 0.0]
@@ -421,12 +449,23 @@ function build_RBF_2D(x, y; param::Param=param)
 
         xlims, ylims = minimum(R):maximum(R),  minimum(phi_rad):maximum(phi_rad)
 
-        model = RadialBasis(xys, zs, lower_bound, upper_bound)
-        zpred = model.(xys)
-
-        if verbose1
-            println("\nBuilding a Radial Basis Function (RBF) neural network surrogate function for the 2D plot of a potential")
+        if build
+            #-----------------------------------------------------------------------
+            # Build a Radial Basis Function (RBF) neural network surrogate function
+            #-----------------------------------------------------------------------
+            if verbose1
+                println("\nBuilding a Radial Basis Function (RBF) neural network surrogate function for the 2D plot of a potential")
+            end
+            model = RadialBasis(xys, zs, lower_bound, upper_bound)
+            param.model = model
+        else
+            #----------------------------------------
+            # Load trained RBF model state from file
+            #----------------------------------------
+            ok = load_surrogate(; param=param)
         end
+        
+        zpred = model.(xys)
     
         delta = euclidean(zpred, zs)
         s = @sprintf("%.3e", delta )
@@ -446,7 +485,7 @@ function build_RBF_2D(x, y; param::Param=param)
             p2 = plot(c2, title=title_p2)
 
             s3 = surface(xlims, ylims, (x1,x2) -> func_Rphi((x1,x2)))
-            scatter!(xs, ys, zs)
+            scatter!(xs, ys, zpred)
             p3 = plot(s3, title=title_p3)
         end
 
@@ -454,6 +493,8 @@ function build_RBF_2D(x, y; param::Param=param)
         println("Either theta, or phi or both must be of length 1")
         return false, nothing
     end
+
+    param.model_file_name = model_file_name
 
     if show
         display(p1)
@@ -472,7 +513,7 @@ function build_RBF_2D(x, y; param::Param=param)
         savefig(p3, p3_png)
     end
 
-    # Update model state
+    # Update and save model state
     model_state = Flux.state(model)
     jldsave(model_file_name; model_state)
 
@@ -480,7 +521,7 @@ function build_RBF_2D(x, y; param::Param=param)
 end
 
 #-----------------------------------------------------------------------------------------------------------------------------
-# Define build_surrogate() which Trains a Radial Basis Function (RBF) neural network surrogate function for function potential
+# Define build_surrogate() which trains a Radial Basis Function (RBF) neural network surrogate function for function potential
 #
 # Building a surrogate, https://docs.sciml.ai/Surrogates/stable/neural/#Building-a-surrogate
 # Module SurrogatesFlux, https://github.com/SciML/Surrogates.jl/blob/master/lib/SurrogatesFlux/src/SurrogatesFlux.jl
@@ -493,10 +534,8 @@ end
 #-----------------------------------------------------------------------------------------------------------------------------
 function build_surrogate(; param::Param=param)
 
-    # Retrieve potential function from param structure
-    potential = param.potential
-
     # Retrieve parameters from param data structure
+    potential = param.potential
     verbose1 = param.verbose1
     
     R::Vector{Float64} = param.R
@@ -529,6 +568,9 @@ function build_surrogate(; param::Param=param)
     model = nothing 
 
     if l_theta == 1 && l_phi == 1
+        #------------------------------
+        # Build 1D RBF surrogate model
+        #------------------------------
         x = R
         param.lower_bound = minimum(R)
         param.upper_bound = maximum(R)
@@ -553,40 +595,62 @@ function build_surrogate(; param::Param=param)
 
         param.scale = scale
         y = y_R*param.scale
-        
         param.model_file_name = string("model_theta_", theta[1], "_phi_", phi[1], ".jld2")
-        
         ok, model = build_RBF_1D(x, y; param=param)
 
     elseif l_phi == 1
-        x = [[r,th] for r in R, th in theta_rad]
-        
-        func_Rtheta = r_th -> potential(r_th[1], Q, r_th[2], phi_rad0)
-
-        param.scale = 1.0E-05
-        y = func_Rtheta.(x)*param.scale
-
-        param.model_file_name = string("model_theta_", Int(theta[1]), "_to_", Int(theta[end]), "_phi_", phi[1], ".jld2")
-        
-        ok, model = build_RBF_2D(x, y; param=param)
+        #------------------------------
+        # Build 2D RBF surrogate model
+        #------------------------------
+        ok, model = build_RBF_2D(; param=param)
 
     elseif l_theta == 1
-        x = [[r,ph] for r in R, ph in phi_rad]
-        
-        func_Rphi = r_ph -> potential(r_ph[1], Q, theta_rad0, r_ph[2])
-
-        param.scale = 1.0E-05
-        y = func_Rphi.(x)*param.scale
-
-        param.model_file_name = string("model_phi_", Int(phi[1]), "_to_", Int(phi[end]), "_theta_", theta[1], ".jld2")
-
-        ok, model = build_RBF_2D(x, y; param=param)
+        ok, model = build_RBF_2D(; param=param)
         
     else
         println("Either theta, or phi or both must be of length 1")
     end
     
     return ok, model
+end
+
+#----------------------------------------------------------------------------------------------------------------------------
+# Define load_surrogate() which loads a Radial Basis Function (RBF) neural network surrogate function for function potential
+#----------------------------------------------------------------------------------------------------------------------------
+function load_surrogate(; param::Param=param)
+
+    # Retrieve parameters from param data structure
+    verbose1 = param.verbose1
+        
+    #------------------------------------
+    # Get RBF model from param structure
+    #-----------------------------------
+    model = param.model
+    if model == nothing
+        println("\nmodel not found in param.model: $model")
+        return false
+    end
+
+    #------------------------------------------
+    # Get model_file_name from param structure
+    #------------------------------------------
+    model_file_name = param.model_file_name
+    if !isfile(model_file_name)
+        println("\nFile not found: $model_file_name")
+        return false
+    end
+
+    #----------------------------------------
+    # Load trained RBF model state from file
+    #----------------------------------------
+    if verbose1
+        println("\nload_surrogate - Loading a RBF model from file $model_file_name")
+    end
+    
+    model_state = JLD2.load(model_file_name, "model_state")
+    Flux.loadmodel!(param.model, model_state)
+    
+    return true
 end
 
 #---------------------------------------------------------------------------------
@@ -604,10 +668,9 @@ function run_surrogate(; param::Param=param, n_samples::Int64=50, R=collect(4.0:
     param.phi = phi
     param.grad = grad
     param.show = show
+    param.build = build
 
-    if build
-        ok, model = build_surrogate(; param=param)
-    end
+    ok, model = build_surrogate(; param=param)
     
     return ok, param.model_file_name
 end
